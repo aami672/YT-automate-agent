@@ -111,27 +111,27 @@ class ScriptWriterAgent {
     );
 
     const prompt = isKidsOrStory
-      ? `You are an expert children's animated story and nursery rhyme writer for a top 3D cartoon YouTube channel (like Pixar/Cocomelon/Disney).
-Write a vibrant, heartwarming, dialogue-rich cartoon story script for kids.
+      ? `You are an expert children's 3D animated cartoon & nursery rhymes director (like Pixar, Cocomelon, BabyBus).
+Write an ultra-cute, heartwarming, dialogue-rich 3D animated story/rhyme script featuring adorable chubby babies in fruit/animal costumes (like Pineapple Baby, Strawberry Toddler, Bunny Baby), cute baby dancing, clapping hands, baby giggles, plush teddy bears, and nursery room adventures.
 
 Return only valid JSON with this exact shape:
 {
   "title": "${strategy.topic}",
-  "hook": "An exciting, magical, or curiosity-sparking opening story line that instantly grabs kids' attention",
+  "hook": "A joyful, sparkling opening line introducing our cute costumed baby getting ready to dance and play",
   "sections": [
-    { "title": "Scene 1: Introduction & Setting", "content": ["Whimsical narrator line and character action/dialogue"], "duration": 30 },
-    { "title": "Scene 2: The Adventure Begins", "content": ["Playful dialogue and story events"], "duration": 40 },
-    { "title": "Scene 3: The Big Challenge", "content": ["Exciting story climax and character interaction"], "duration": 40 },
-    { "title": "Scene 4: The Moral & Heartwarming Ending", "content": ["Sweet resolution and life lesson"], "duration": 40 }
+    { "title": "Scene 1: Happy Morning & Cute Costume", "content": ["Whimsical narrator line describing the adorable baby in their cute fruit costume waking up with big smiles and giggles"], "duration": 25 },
+    { "title": "Scene 2: The Baby Dance & Clapping Time", "content": ["Joyful nursery rhyme lines, baby clapping little hands, waddling, and dancing with plush teddy bears"], "duration": 30 },
+    { "title": "Scene 3: Playful Adventure & Toy Fun", "content": ["Cute playful moments, building colorful blocks, laughing, spinning around, and sharing toys"], "duration": 30 },
+    { "title": "Scene 4: Heartwarming Hug & Sweet Dreams", "content": ["Warm, cozy closing moment with baby hugging their teddy bear, soft smiles, and bedtime sweetness"], "duration": 25 }
   ],
-  "cta": "Sweet closing line asking little friends to subscribe for more cartoon stories!",
+  "cta": "Sweet closing line asking little friends and parents to like and subscribe for more magical baby cartoon adventures!",
   "claims": []
 }
 
 Story Topic: ${strategy.topic}
 Target Audience: ${strategy.targetAudience}
-Tone: Cheerful, imaginative, warm, and playful
-Style: Engaging 3D animated cartoon storytelling with character dialogues and fun sounds.`
+Tone: Joyful, adorable, playful, filled with baby laughter and upbeat rhythm
+Visual Aesthetic: 3D Pixar animated style, soft pastel cozy nursery, chubby smiling baby in bright pineapple/fruit costume, clapping and dancing.`
       : `You are writing a YouTube script plan.
 Return only valid JSON with this exact shape:
 {

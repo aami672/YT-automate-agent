@@ -36,11 +36,19 @@ class MediaGenerationService {
   listProviders() { return this.registry.list(); }
 
   buildScenePlan(script = {}, visualAssets = [], settings = {}) {
+    const isKidsCartoon = /story|cartoon|kid|baby|toddler|rhyme|nursery|costume|pineapple|strawberry|bunny/i.test(
+      `${script.title || ''} ${script.hook?.text || ''} ${JSON.stringify(script.metadata || {})}`
+    );
+
+    const styleSuffix = isKidsCartoon
+      ? ' 3D Pixar Disney animated style, ultra cute chubby baby in adorable fruit/animal costume, joyful dancing, clapping hands, laughing with baby giggles, soft warm pastel nursery room lighting, cute teddy bears and toy blocks on floor, cinematic smooth camera movement, 8k render, Unreal Engine 5, no text on screen.'
+      : ' Cinematic explanatory B-roll, natural motion, coherent lighting, no captions or on-screen text.';
+
     const prompts = [];
     if (script.hook?.text || script.title) {
       prompts.push({
         label: 'Hook',
-        prompt: `${script.hook?.text || script.title}. Cinematic opening shot, clear subject, intentional camera movement, no captions or on-screen text.`
+        prompt: `${script.hook?.text || script.title}.${styleSuffix}`
       });
     }
     for (const section of script.mainContent?.sections || []) {
@@ -49,11 +57,11 @@ class MediaGenerationService {
         : (section.items || section.steps || []).map(item => `${item.title || ''} ${item.description || ''}`).join(' ');
       prompts.push({
         label: section.title || 'Scene',
-        prompt: `${section.title || ''}. ${detail}`.trim() + '. Cinematic explanatory B-roll, natural motion, coherent lighting, no captions or on-screen text.'
+        prompt: `${section.title || ''}. ${detail}`.trim() + `.${styleSuffix}`
       });
     }
     if (script.conclusion?.finalThought) {
-      prompts.push({ label: 'Conclusion', prompt: `${script.conclusion.finalThought}. Memorable cinematic closing shot, no captions or on-screen text.` });
+      prompts.push({ label: 'Conclusion', prompt: `${script.conclusion.finalThought}.${styleSuffix}` });
     }
 
     const clipDuration = Number(settings.clipDuration || 8);
