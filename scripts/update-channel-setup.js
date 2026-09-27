@@ -20,7 +20,7 @@ async function main() {
   await db.setSetting('default_style', 'story');
   await db.setSetting('target_audience', 'Kids aged 1-8, toddlers, preschoolers, and parents looking for adorable 3D animated baby dances, fruit costume adventures, and bedtime stories');
   await db.setSetting('video_provider', 'auto');
-  await db.setSetting('video_provider_order', 'kling,seedance,wan,slideshow');
+  await db.setSetting('video_provider_order', 'did,kling,seedance,wan,slideshow');
   await db.setSetting('video_generation_mode', 'hybrid');
   await db.setSetting('video_clip_duration', '8');
   await db.setSetting('video_max_generated_seconds', '60');

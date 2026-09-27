@@ -48,6 +48,7 @@ class MediaGenerationService {
     if (script.hook?.text || script.title) {
       prompts.push({
         label: 'Hook',
+        spokenText: script.hook?.text || script.title,
         prompt: `${script.hook?.text || script.title}.${styleSuffix}`
       });
     }
@@ -57,11 +58,16 @@ class MediaGenerationService {
         : (section.items || section.steps || []).map(item => `${item.title || ''} ${item.description || ''}`).join(' ');
       prompts.push({
         label: section.title || 'Scene',
+        spokenText: detail || section.title || '',
         prompt: `${section.title || ''}. ${detail}`.trim() + `.${styleSuffix}`
       });
     }
     if (script.conclusion?.finalThought) {
-      prompts.push({ label: 'Conclusion', prompt: `${script.conclusion.finalThought}.${styleSuffix}` });
+      prompts.push({
+        label: 'Conclusion',
+        spokenText: script.conclusion.finalThought,
+        prompt: `${script.conclusion.finalThought}.${styleSuffix}`
+      });
     }
 
     const clipDuration = Number(settings.clipDuration || 8);
@@ -109,6 +115,7 @@ class MediaGenerationService {
 
         for (const scene of scenes) {
           const outputPath = path.join(outputDir, `${productionId}_${provider.id}_${String(scene.index).padStart(2, '0')}.mp4`);
+          const scenePrompt = provider.id === 'did' ? (scene.spokenText || scene.prompt) : scene.prompt;
           const result = await this.generateClip({
             jobId,
             productionId,
@@ -116,7 +123,7 @@ class MediaGenerationService {
             provider,
             outputPath,
             request: {
-              prompt: scene.prompt,
+              prompt: scenePrompt,
               duration: scene.duration,
               firstFrame: scene.firstFrame,
               referenceImages: scene.referenceImages,

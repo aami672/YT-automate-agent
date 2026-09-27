@@ -4,7 +4,7 @@ const path = require('path');
 const axios = require('axios');
 const Replicate = require('replicate');
 
-const DEFAULT_PROVIDER_ORDER = ['seedance', 'minimax_h3', 'google_omni', 'kling', 'wan', 'slideshow'];
+const DEFAULT_PROVIDER_ORDER = ['did', 'kling', 'seedance', 'minimax_h3', 'google_omni', 'wan', 'slideshow'];
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, Number(value)));
 
@@ -413,6 +413,100 @@ class WanProvider extends VideoProvider {
   }
 }
 
+class DIDProvider extends VideoProvider {
+  constructor(credentials, options = {}) {
+    const creds = normalizeCredentials(credentials);
+    super('did', {
+      model: options.model || process.env.DID_VIDEO_MODEL || 'd-id-talks-neural',
+      capabilities: {
+        minDuration: 2, maxDuration: 60, defaultResolution: '720p', maxPromptLength: 2000,
+        text: true, firstFrame: true, nativeAudio: true
+      }
+    });
+    this.apiKey = options.apiKey || creds.did?.apiKey || process.env.D_ID_API_KEY;
+    this.baseUrl = (options.baseUrl || process.env.D_ID_API_BASE_URL || 'https://api.d-id.com').replace(/\/$/, '');
+    this.http = options.http || axios;
+  }
+
+  isAvailable() { return Boolean(this.apiKey); }
+
+  headers() {
+    return {
+      Authorization: `Basic ${Buffer.from(this.apiKey).toString('base64')}`,
+      'Content-Type': 'application/json'
+    };
+  }
+
+  async uploadImage(imagePath) {
+    const imageBuffer = await fs.readFile(imagePath);
+    const FormData = require('form-data');
+    const form = new FormData();
+    form.append('image', imageBuffer, { filename: path.basename(imagePath) });
+    const response = await this.http.post(`${this.baseUrl}/images`, form, {
+      headers: {
+        Authorization: `Basic ${Buffer.from(this.apiKey).toString('base64')}`,
+        ...form.getHeaders()
+      },
+      timeout: 60000
+    });
+    return response.data.url;
+  }
+
+  async createTask(input) {
+    const request = this.normalizeRequest(input);
+    let sourceUrl = request.firstFrame;
+    if (sourceUrl && !/^https?:\/\//i.test(sourceUrl)) {
+      sourceUrl = await this.uploadImage(sourceUrl);
+    }
+    if (!sourceUrl) {
+      throw new Error('D-ID requires a character image (firstFrame)');
+    }
+
+    const isHindi = /[\u0900-\u097F]/.test(request.prompt || '');
+    const voiceId = request.voiceId || (isHindi ? 'hi-IN-MadhurNeural' : 'en-US-JennyNeural');
+
+    const body = {
+      source_url: sourceUrl,
+      script: {
+        type: 'text',
+        subtitles: false,
+        provider: { type: 'microsoft', voice_id: voiceId },
+        input: request.prompt || 'Hello and welcome!'
+      },
+      config: {
+        fluent: true,
+        stitch: true,
+        auto_match: true
+      }
+    };
+
+    const response = await this.http.post(`${this.baseUrl}/talks`, body, {
+      headers: this.headers(),
+      timeout: 60000
+    });
+    const data = response.data;
+    if (!data.id) {
+      throw new Error(data.message || 'Failed to create D-ID talk');
+    }
+    return { externalTaskId: data.id, status: 'queued', outputUrl: null, error: null };
+  }
+
+  async getTask(id) {
+    const response = await this.http.get(`${this.baseUrl}/talks/${id}`, {
+      headers: this.headers(),
+      timeout: 30000
+    });
+    const data = response.data;
+    const status = { done: 'succeeded', created: 'queued', started: 'running', error: 'failed' }[data.status] || data.status;
+    return {
+      externalTaskId: id,
+      status,
+      outputUrl: data.result_url || null,
+      error: data.error ? safeModelError(data.error) : null
+    };
+  }
+}
+
 class SlideshowProvider extends VideoProvider {
   constructor() {
     super('slideshow', { model: 'local-ffmpeg', capabilities: { local: true, text: true, maxDuration: Infinity } });
@@ -424,6 +518,7 @@ class VideoProviderRegistry {
   constructor(credentials = {}, options = {}) {
     const injected = options.providers || {};
     this.providers = new Map([
+      ['did', injected.did || new DIDProvider(credentials, options.did)],
       ['seedance', injected.seedance || new SeedanceProvider(credentials, options.seedance)],
       ['minimax_h3', injected.minimax_h3 || new MiniMaxH3Provider(credentials, options.minimax_h3)],
       ['google_omni', injected.google_omni || new GoogleOmniProvider(credentials, options.google_omni)],
@@ -453,6 +548,7 @@ module.exports = {
   DEFAULT_PROVIDER_ORDER,
   VideoProvider,
   VideoProviderRegistry,
+  DIDProvider,
   SeedanceProvider,
   MiniMaxH3Provider,
   GoogleOmniProvider,
