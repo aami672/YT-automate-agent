@@ -289,7 +289,7 @@ class KlingProvider extends VideoProvider {
   constructor(credentials, options = {}) {
     const creds = normalizeCredentials(credentials);
     super('kling', {
-      model: options.model || process.env.KLING_VIDEO_MODEL || 'kling-v3-omni',
+      model: options.model || process.env.KLING_VIDEO_MODEL || 'kling-v3',
       capabilities: {
         minDuration: 3, maxDuration: 15, defaultResolution: '1080p', maxPromptLength: 2500,
         text: true, firstFrame: true, lastFrame: true, referenceImages: 4,
@@ -323,7 +323,7 @@ class KlingProvider extends VideoProvider {
     const endpoint = imageMode ? 'image2video' : 'text2video';
     const durationVal = (Number(request.duration) > 7) ? '10' : '5';
     const body = {
-      model_name: this.model === 'kling-v3-omni' ? 'kling-v1' : this.model,
+      model_name: this.model || 'kling-v3',
       prompt: request.prompt,
       duration: durationVal,
       aspect_ratio: request.aspectRatio || '16:9',
