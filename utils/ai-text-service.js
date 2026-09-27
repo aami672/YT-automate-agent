@@ -2,9 +2,10 @@ const OpenAI = require('openai');
 const { Logger } = require('./logger');
 
 const GEMINI_MODELS = [
-  'gemini-3.7-flash',
-  'gemini-3.1-pro-preview',
+  'gemini-3.5-flash',
+  'gemini-3.8-flash',
   'gemini-3.5-flash-lite',
+  'gemini-3.7-flash',
 ];
 const GEMINI_DEFAULT_MODEL = GEMINI_MODELS[0];
 
@@ -136,7 +137,7 @@ class AITextService {
       const config = { maxOutputTokens: maxTokens };
       if (!/^gemini-3\.(?:[5-9]|\d{2,})-/.test(model)) config.temperature = temperature;
       
-      const candidateModels = [model, ...GEMINI_MODELS.filter(m => m !== model), 'gemini-2.5-flash', 'gemini-2.0-flash'];
+      const candidateModels = [model, ...GEMINI_MODELS.filter(m => m !== model)];
       let lastError = null;
 
       for (const targetModel of candidateModels) {
@@ -152,11 +153,7 @@ class AITextService {
           }
         } catch (err) {
           lastError = err;
-          const isOverloaded = err?.status === 503 || err?.code === 503 || /high demand|unavailable|overloaded/i.test(err?.message || '');
-          if (!isOverloaded) {
-            throw err;
-          }
-          this.logger.warn(`Gemini model ${targetModel} is experiencing high demand (503), trying fallback model...`);
+          this.logger.warn(`Gemini model ${targetModel} encountered error (${err.message?.slice(0, 150)}), trying fallback model...`);
         }
       }
 

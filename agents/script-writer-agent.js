@@ -155,7 +155,7 @@ Brand voice: ${strategy.brandVoice || 'clear, credible, and engaging'}`;
 
     try {
       const response = await this.aiTextService.generateText(prompt, {
-        maxTokens: 1800,
+        maxTokens: 4096,
         temperature: 0.7
       });
       const parsed = this.parseAIJsonResponse(response);
@@ -197,18 +197,29 @@ Brand voice: ${strategy.brandVoice || 'clear, credible, and engaging'}`;
   parseAIJsonResponse(response) {
     const text = String(response || '').trim();
     const withoutFences = text
-      .replace(/^```(?:json)?\s*/i, '')
-      .replace(/```$/i, '')
+      .replace(/```(?:json)?/gi, '')
       .trim();
+
+    const cleanJson = (str) => {
+      return str
+        .replace(/,\s*([\]}])/g, '$1') // remove trailing commas
+        .replace(/\n(?=(?:[^"]*"[^"]*")*[^"]*$)/g, ' '); // replace stray newlines
+    };
 
     try {
       return JSON.parse(withoutFences);
-    } catch (error) {
-      const match = withoutFences.match(/\{[\s\S]*\}/);
-      if (!match) {
-        throw error;
+    } catch (_err) {
+      try {
+        return JSON.parse(cleanJson(withoutFences));
+      } catch (_err2) {
+        const match = withoutFences.match(/\{[\s\S]*\}/);
+        if (!match) throw _err;
+        try {
+          return JSON.parse(match[0]);
+        } catch (_err3) {
+          return JSON.parse(cleanJson(match[0]));
+        }
       }
-      return JSON.parse(match[0]);
     }
   }
 
