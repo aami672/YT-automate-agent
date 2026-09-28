@@ -4,7 +4,7 @@ const path = require('path');
 const axios = require('axios');
 const Replicate = require('replicate');
 
-const DEFAULT_PROVIDER_ORDER = ['did', 'kling', 'seedance', 'minimax_h3', 'google_omni', 'wan', 'slideshow'];
+const DEFAULT_PROVIDER_ORDER = ['agnes', 'did', 'kling', 'seedance', 'minimax_h3', 'google_omni', 'wan', 'slideshow'];
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, Number(value)));
 
@@ -507,6 +507,160 @@ class DIDProvider extends VideoProvider {
   }
 }
 
+class AgnesVideoProvider extends VideoProvider {
+  constructor(credentials = {}, options = {}) {
+    const creds = normalizeCredentials(credentials);
+    const model = options.model || process.env.AGNES_VIDEO_MODEL || 'agnes-video-2.5-flash';
+    super('agnes', {
+      model,
+      capabilities: {
+        text: true,
+        firstFrame: true,
+        lastFrame: true,
+        referenceImages: 5,
+        referenceVideos: 0,
+        referenceAudios: 0,
+        minDuration: 4,
+        maxDuration: 17,
+        maxPromptLength: 2000,
+        defaultResolution: '720p',
+        nativeAudio: false,
+        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4']
+      }
+    });
+    this.apiKey = creds.agnesApiKey || process.env.AGNES_API_KEY || null;
+    this.baseUrl = (creds.agnesBaseUrl || process.env.AGNES_BASE_URL || 'https://apihub.agnes-ai.com/v1').replace(/\/+$/, '');
+    this.rootUrl = this.baseUrl.replace(/\/v1$/, '');
+    this.http = options.http || axios;
+  }
+
+  isAvailable() {
+    return Boolean(this.apiKey);
+  }
+
+  headers() {
+    return {
+      'Authorization': `Bearer ${this.apiKey}`,
+      'Content-Type': 'application/json'
+    };
+  }
+
+  async createTask(input) {
+    const request = this.normalizeRequest(input);
+    const duration = Math.min(12, Math.max(4, Math.round(Number(request.duration || 5))));
+    const aspectRatio = request.aspectRatio || '9:16';
+    const isV25 = this.model.includes('2.5');
+
+    let payload;
+    if (isV25) {
+      payload = {
+        model: this.model,
+        prompt: request.prompt || 'Cinematic 3D animation, Disney Pixar render style, vivid colors, expressive lighting',
+        mode: 'text',
+        seconds: String(duration),
+        size: '720P',
+        aspect_ratio: aspectRatio
+      };
+
+      const refs = [];
+      if (request.firstFrame) {
+        refs.push(await fileToDataUrl(request.firstFrame));
+      }
+      if (Array.isArray(request.referenceImages)) {
+        for (const img of request.referenceImages) {
+          if (refs.length < 5) refs.push(await fileToDataUrl(img));
+        }
+      }
+
+      if (request.firstFrame && request.lastFrame) {
+        payload.mode = 'keyframe';
+        payload.first_frame_image = await fileToDataUrl(request.firstFrame);
+        payload.last_frame_image = await fileToDataUrl(request.lastFrame);
+      } else if (refs.length > 0) {
+        payload.mode = 'reference';
+        payload.images = refs;
+      }
+    } else {
+      payload = {
+        model: this.model,
+        prompt: request.prompt,
+        width: aspectRatio === '9:16' ? 720 : 1280,
+        height: aspectRatio === '9:16' ? 1280 : 720,
+        num_frames: duration * 24,
+        frame_rate: 24
+      };
+      if (request.firstFrame) {
+        payload.image = await fileToDataUrl(request.firstFrame);
+        payload.mode = 'ti2vid';
+      }
+    }
+
+    // Submit with automatic retry for queue full / rate limits
+    const maxRetries = 5;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await this.http.post(`${this.baseUrl}/videos`, payload, {
+          headers: this.headers(),
+          timeout: 90000
+        });
+
+        const data = response.data;
+        const videoId = data.video_id || data.task_id || data.id;
+        if (videoId) {
+          return {
+            externalTaskId: videoId,
+            status: 'queued',
+            outputUrl: null,
+            error: null
+          };
+        }
+      } catch (err) {
+        const status = err.response?.status;
+        const errData = err.response?.data;
+        const isQueueFull = errData?.code === 'video_queue_full' || status === 503 || status === 429;
+
+        if (isQueueFull && attempt < maxRetries) {
+          const delay = attempt * 15000;
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        throw new Error(errData?.message || err.message || 'Failed to submit Agnes video task');
+      }
+    }
+
+    throw new Error('Agnes video submission timed out after retries');
+  }
+
+  async getTask(id) {
+    const modelParam = `&model_name=${encodeURIComponent(this.model)}`;
+    const response = await this.http.get(`${this.rootUrl}/agnesapi?video_id=${encodeURIComponent(id)}${modelParam}`, {
+      headers: this.headers(),
+      timeout: 30000
+    });
+
+    const data = response.data;
+    const rawStatus = String(data.status || '').toLowerCase();
+    
+    let status = 'queued';
+    if (['completed', 'succeeded', 'success', 'done'].includes(rawStatus)) {
+      status = 'succeeded';
+    } else if (['processing', 'running', 'in_progress'].includes(rawStatus)) {
+      status = 'running';
+    } else if (['failed', 'error', 'rejected'].includes(rawStatus)) {
+      status = 'failed';
+    }
+
+    const outputUrl = data.video_url || data.output_url || (Array.isArray(data.data) && data.data[0]?.url) || data.result_url || null;
+
+    return {
+      externalTaskId: id,
+      status,
+      outputUrl,
+      error: data.error ? safeModelError(data.error) : null
+    };
+  }
+}
+
 class SlideshowProvider extends VideoProvider {
   constructor() {
     super('slideshow', { model: 'local-ffmpeg', capabilities: { local: true, text: true, maxDuration: Infinity } });
@@ -518,6 +672,7 @@ class VideoProviderRegistry {
   constructor(credentials = {}, options = {}) {
     const injected = options.providers || {};
     this.providers = new Map([
+      ['agnes', injected.agnes || new AgnesVideoProvider(credentials, options.agnes)],
       ['did', injected.did || new DIDProvider(credentials, options.did)],
       ['seedance', injected.seedance || new SeedanceProvider(credentials, options.seedance)],
       ['minimax_h3', injected.minimax_h3 || new MiniMaxH3Provider(credentials, options.minimax_h3)],
@@ -548,6 +703,7 @@ module.exports = {
   DEFAULT_PROVIDER_ORDER,
   VideoProvider,
   VideoProviderRegistry,
+  AgnesVideoProvider,
   DIDProvider,
   SeedanceProvider,
   MiniMaxH3Provider,
@@ -557,3 +713,4 @@ module.exports = {
   SlideshowProvider,
   safeModelError
 };
+
