@@ -5,10 +5,10 @@ const fs = require('fs');
 const dbPath = path.join(__dirname, '..', 'data', 'youtube_automation.db');
 const db = new sqlite3.Database(dbPath);
 
-const prodId = 'prod_pixar_story_reel_' + Date.now();
-const scriptId = 'script_pixar_story_reel_' + Date.now();
-const title = '🥔 जब आलू को हुआ गोभी से प्यार | 3D Pixar Hindi Reel';
-const videoPath = path.join(__dirname, '..', 'data', 'videos', 'jab_aloo_ko_hua_gobhi_se_pyar_final_reel.mp4');
+const prodId = 'prod_agnes_animated_reel_' + Date.now();
+const scriptId = 'script_agnes_animated_reel_' + Date.now();
+const title = '🥔 जब आलू को हुआ गोभी से प्यार | Fully Animated 3D Pixar Hindi Reel';
+const videoPath = path.join(__dirname, '..', 'data', 'videos', 'jab_aloo_ko_hua_gobhi_se_pyar_agnes_animated.mp4');
 
 const scriptData = {
   id: scriptId,
@@ -18,22 +18,23 @@ const scriptData = {
   main_content: 'Scene 1: आलू का प्रपोजल। Scene 2: टमाटर की विलेन एंट्री और स्वैग। Scene 3: आलू और टमाटर की नोकझोंक व गोभी का जवाब। Scene 4: मटर जी की ट्विस्ट एंट्री!',
   conclusion: 'आपकी पसंदीदा सब्ज़ी कौन सी है? कमेंट में बताओ और फॉलो करो!',
   call_to_action: 'लाइक और सब्सक्राइब करना न भूलें!',
-  full_script: 'जब आलू को हुआ गोभी से प्यार - 3D Pixar Hindi Short'
+  full_script: 'जब आलू को हुआ गोभी से प्यार - Fully Animated Agnes 3D Pixar Short'
 };
 
 const assetsObj = {
   finalVideo: videoPath,
   videoPath: videoPath,
-  videoUrl: '/videos/jab_aloo_ko_hua_gobhi_se_pyar_final_reel.mp4',
-  engine: '3D Pixar Diffusion + Microsoft Azure Hindi Neural Voice Pipeline',
+  videoUrl: '/videos/jab_aloo_ko_hua_gobhi_se_pyar_agnes_animated.mp4',
+  engine: 'Agnes Video Generator (Manuscript Reference Pipeline) + Locked Microsoft Azure Hindi Neural Voice',
   scenes: [
     'Scene 1: The Romantic Entry (Aloo & Gobhi in Mandi)',
     'Scene 2: The Villain Entry (Tamatar with Sunglasses)',
     'Scene 3: The Argument & Gobhi’s Choice',
     'Scene 4: The Twist Ending (Matar Swag Entry)'
   ],
-  resolution: '720x1280 (9:16 Vertical)',
+  resolution: '832x1088 (9:16 Vertical)',
   fps: 30,
+  duration_seconds: 43.37,
   file_size_bytes: fs.existsSync(videoPath) ? fs.statSync(videoPath).size : 0
 };
 
@@ -49,7 +50,7 @@ db.serialize(() => {
 
   db.run(
     'INSERT OR REPLACE INTO productions (id, script_id, status, assets, estimated_duration) VALUES (?, ?, ?, ?, ?)',
-    [prodId, scriptId, 'completed', JSON.stringify(assetsObj), '00:48'],
+    [prodId, scriptId, 'completed', JSON.stringify(assetsObj), '00:43'],
     (err) => {
       if (err) console.error('Error inserting production:', err);
       else console.log(`✅ Production record ${prodId} registered successfully in DB!`);
