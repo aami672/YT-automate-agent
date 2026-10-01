@@ -408,7 +408,7 @@ def assemble_master_with_dissolves(scene_clips, dialogue_tracks, bgm_wav, bell_w
         "-ar", "44100",
         "-t", f"{final_video_duration:.2f}",
         output_master_mp4
-    ]
+    ])
     
     print("Running final 60 FPS master assembly with audio mixing...", flush=True)
     p_final = subprocess.run(cmd_master, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
