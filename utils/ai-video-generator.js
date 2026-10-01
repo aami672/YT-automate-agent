@@ -246,11 +246,81 @@ class AIVideoGenerator {
       try {
         return await this.generateGeminiImage(prompt, imagePath);
       } catch (err) {
-        this.logger.warn(`Gemini image generation failed (${err.message}).`);
+        this.logger.warn(`Gemini image generation failed (${err.message}); falling back to Pollinations...`);
       }
     }
 
+    try {
+      return await this.generatePollinationsImage(prompt, imagePath);
+    } catch (pollErr) {
+      this.logger.warn(`Pollinations image generation failed (${pollErr.message}).`);
+    }
+
     throw new Error('No working image generation provider configured');
+  }
+
+  async generatePollinationsImage(prompt, imagePath) {
+    const https = require('https');
+    const fsSync = require('fs');
+    
+    // Enrich prompt for Disney Pixar 3D styling if not already present
+    let styledPrompt = prompt;
+    if (!styledPrompt.toLowerCase().includes('pixar') && !styledPrompt.toLowerCase().includes('3d')) {
+      styledPrompt = `3D Pixar Disney animation style, ${prompt}, vibrant studio lighting, cute expressive character, high resolution, vertical 9:16, masterpiece, 8k render`;
+    }
+    
+    const encoded = encodeURIComponent(styledPrompt);
+    const models = ['flux', 'turbo', 'midjourney'];
+    
+    let lastError = null;
+    for (const model of models) {
+      try {
+        const randomSeed = Math.floor(Math.random() * 1000000);
+        const url = `https://image.pollinations.ai/prompt/${encoded}?width=720&height=1280&nologo=true&model=${model}&seed=${randomSeed}`;
+        
+        await new Promise((resolve, reject) => {
+          const req = https.get(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+            },
+            timeout: 30000
+          }, (res) => {
+            if (res.statusCode >= 400) {
+              return reject(new Error(`Pollinations API (${model}) returned status code ${res.statusCode}`));
+            }
+            const file = fsSync.createWriteStream(imagePath);
+            res.pipe(file);
+            file.on('finish', () => {
+              file.close();
+              resolve();
+            });
+          });
+          
+          req.on('error', (err) => {
+            fsSync.unlink(imagePath, () => {});
+            reject(err);
+          });
+          
+          req.on('timeout', () => {
+            req.destroy();
+            reject(new Error(`Pollinations API (${model}) request timed out`));
+          });
+        });
+
+        const stats = await fs.stat(imagePath).catch(() => ({ size: 0 }));
+        if (stats.size >= 5000) {
+          this.logger.info(`Generated 3D Pixar character image (${model}): ${imagePath} (${stats.size} bytes)`);
+          return imagePath;
+        }
+      } catch (err) {
+        lastError = err;
+        // Wait 800ms before trying fallback model
+        await new Promise(r => setTimeout(r, 800));
+      }
+    }
+
+    throw lastError || new Error('All Pollinations image models failed');
   }
 
   async generateOpenAIImage(prompt, imagePath) {

@@ -12,6 +12,14 @@ class PixarVideoEngine {
   constructor(options = {}) {
     this.logger = new Logger('PixarVideoEngine');
     this.options = options;
+    if (options.aiVideoGenerator) {
+      this.aiVideoGenerator = options.aiVideoGenerator;
+    } else {
+      const { AIVideoGenerator } = require('../ai-video-generator');
+      const { CredentialManager } = require('../credential-manager');
+      const creds = new CredentialManager().credentials || {};
+      this.aiVideoGenerator = new AIVideoGenerator(creds);
+    }
   }
 
   getPythonPath() {
@@ -57,6 +65,31 @@ class PixarVideoEngine {
 
     const finalOutput = outputFilePath || path.join(__dirname, '..', '..', 'data', 'videos', `pixar_${timestamp}_60fps.mp4`);
     await fs.mkdir(path.dirname(finalOutput), { recursive: true });
+
+    // 1.5 Generate 3D Pixar character visuals dynamically for each scene
+    const imagesDir = path.join(resolvedTempDir, 'scene_images');
+    await fs.mkdir(imagesDir, { recursive: true });
+
+    for (let i = 0; i < storyboardPackage.storyboard.length; i++) {
+      const scene = storyboardPackage.storyboard[i];
+      const hasSpecificPreexistingClip = scene.clip_path && require('fs').existsSync(path.resolve(__dirname, '..', '..', scene.clip_path));
+      const hasSpecificPreexistingImg = scene.image_path && require('fs').existsSync(path.resolve(__dirname, '..', '..', scene.image_path));
+      
+      // If the scene is from a new story or doesn't have an existing asset, generate it fresh
+      if (!hasSpecificPreexistingClip && !hasSpecificPreexistingImg) {
+        const sceneImgPath = path.join(imagesDir, `scene_${i}.jpg`);
+        const charPrompt = scene.visual_prompt || `A high-quality 3D Pixar animation scene. ${scene.character}, ${scene.title}. Cute expressive facial features, vibrant cinema lighting, vertical 9:16 composition, 3D Disney Pixar render.`;
+        
+        try {
+          this.logger.info(`[Image Generator] Generating 3D Pixar visual for Scene ${i + 1}/${storyboardPackage.storyboard.length} (${scene.character})...`);
+          await this.aiVideoGenerator.generateImage(charPrompt, sceneImgPath);
+          scene.image_path = sceneImgPath;
+          scene.clip_path = null;
+        } catch (imgErr) {
+          this.logger.warn(`Failed to generate AI image for scene ${i + 1}: ${imgErr.message}`);
+        }
+      }
+    }
 
     // 2. Prepare Config JSON
     const configPath = path.join(resolvedTempDir, 'render_config.json');

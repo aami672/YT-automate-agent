@@ -234,7 +234,7 @@ async def generate_single_tts(text, voice, pitch, rate, output_mp3):
         return False
 
 def resolve_character_clip(scene, idx, project_root):
-    """Find the best 3D animated video clip for the scene."""
+    """Find the best 3D animated video clip for the scene if specifically provided."""
     clip_path = scene.get("clip_path") or scene.get("clip")
     if clip_path:
         p = Path(clip_path)
@@ -242,32 +242,6 @@ def resolve_character_clip(scene, idx, project_root):
             p = project_root / clip_path
         if p.exists() and p.stat().st_size > 100000:
             return str(p)
-
-    # Check assets/pixar-clips/scene_{idx}.mp4
-    direct_clip = project_root / "assets" / "pixar-clips" / f"scene_{idx}.mp4"
-    if direct_clip.exists() and direct_clip.stat().st_size > 100000:
-        return str(direct_clip)
-
-    # Check scratch ai_reels_project/scene_clips_v3/scene_{idx}.mp4
-    ai_reels_clip = Path(f"C:/Users/Amar's PC/.gemini/antigravity/scratch/ai_reels_project/scene_clips_v3/scene_{idx}.mp4")
-    if ai_reels_clip.exists() and ai_reels_clip.stat().st_size > 100000:
-        return str(ai_reels_clip)
-
-    # Check character name mapping
-    char_lower = scene.get("character", "").lower()
-    mapping = {
-        "pencil": "scene_0.mp4",
-        "eraser": "scene_1.mp4",
-        "sharpener": "scene_2.mp4",
-        "ruler": "scene_3.mp4",
-        "squad": "scene_4.mp4",
-        "outro": "scene_5.mp4"
-    }
-    for key, filename in mapping.items():
-        if key in char_lower:
-            candidate = project_root / "assets" / "pixar-clips" / filename
-            if candidate.exists() and candidate.stat().st_size > 100000:
-                return str(candidate)
 
     return None
 
@@ -278,10 +252,10 @@ def resolve_character_image(scene, project_root):
         p = Path(img_path)
         if not p.is_absolute():
             p = project_root / img_path
-        if p.exists():
+        if p.exists() and p.stat().st_size > 1000:
             return str(p)
 
-    # Check assets/pixar-characters by character name
+    # Check assets/pixar-characters by character name only if matched
     char_lower = scene.get("character", "").lower()
     mapping = {
         "pencil": "pencil_hero.jpg",
@@ -296,23 +270,6 @@ def resolve_character_image(scene, project_root):
             candidate = project_root / "assets" / "pixar-characters" / filename
             if candidate.exists():
                 return str(candidate)
-
-    # Check brain directory artifacts
-    brain_dir = Path("C:/Users/Amar's PC/.gemini/antigravity/brain/948aeb55-f992-450a-afe5-fdaa77988433")
-    if brain_dir.exists():
-        brain_map = {
-            "pencil": "pencil_clean_scene1_1790778959181.jpg",
-            "eraser": "perfect_eraser_scene2_1790767774858.jpg",
-            "sharpener": "sharpener_vertical_scene3_1790778982658.jpg",
-            "ruler": "perfect_ruler_scene4_1790767816866.jpg",
-            "squad": "squad_vertical_scene5_1790779257620.jpg",
-            "outro": "outro_vertical_scene6_1790779279652.jpg"
-        }
-        for key, filename in brain_map.items():
-            if key in char_lower:
-                candidate = brain_dir / filename
-                if candidate.exists():
-                    return str(candidate)
 
     return None
 
@@ -344,20 +301,17 @@ def render_fallback_frame(character_name, scene_title, width, height, output_png
         draw.ellipse([cx + 8, cy - 35, cx + 30, cy - 10], fill=(255, 255, 255))
         draw.ellipse([cx + 12, cy - 30, cx + 24, cy - 16], fill=(30, 40, 60))
         draw.arc([cx - 18, cy - 5, cx + 18, cy + 20], start=10, end=170, fill=(40, 25, 20), width=4)
-    elif "eraser" in char_lower:
-        draw.rounded_rectangle([cx - 75, cy - 90, cx + 75, cy + 90], radius=25, fill=(255, 130, 160))
-        draw.rounded_rectangle([cx - 65, cy + 10, cx + 65, cy + 80], radius=15, fill=(70, 130, 240))
-        draw.ellipse([cx - 45, cy - 60, cx - 10, cy - 15], fill=(255, 255, 255))
-        draw.ellipse([cx + 10, cy - 60, cx + 45, cy - 15], fill=(255, 255, 255))
-        draw.ellipse([cx - 15, cy - 5, cx + 15, cy + 25], fill=(80, 20, 30))
-    elif "sharpener" in char_lower:
-        draw.rounded_rectangle([cx - 70, cy - 80, cx + 70, cy + 80], radius=18, fill=(45, 150, 245))
-        draw.rounded_rectangle([cx - 35, cy - 55, cx + 35, cy + 55], radius=6, fill=(215, 220, 230))
-    elif "ruler" in char_lower:
-        draw.rounded_rectangle([cx - 35, cy - 190, cx + 35, cy + 130], radius=10, fill=(245, 175, 55))
-        draw.polygon([(cx - 35, cy - 80), (cx - 95, cy + 120), (cx - 35, cy + 40)], fill=(235, 45, 45))
+    elif "phone" in char_lower or "smartphone" in char_lower:
+        draw.rounded_rectangle([cx - 70, cy - 140, cx + 70, cy + 140], radius=22, fill=(35, 45, 65))
+        draw.rounded_rectangle([cx - 60, cy - 130, cx + 60, cy + 130], radius=16, fill=(15, 20, 30))
+        draw.ellipse([cx - 30, cy - 40, cx - 10, cy - 15], fill=(255, 255, 255))
+        draw.ellipse([cx + 10, cy - 40, cx + 30, cy - 15], fill=(255, 255, 255))
+        draw.rounded_rectangle([cx - 30, cy + 40, cx + 30, cy + 65], radius=6, fill=(235, 60, 60))
+    elif "earbud" in char_lower:
+        draw.rounded_rectangle([cx - 60, cy - 80, cx - 15, cy + 50], radius=20, fill=(240, 245, 255))
+        draw.rounded_rectangle([cx + 15, cy - 80, cx + 60, cy + 50], radius=20, fill=(240, 245, 255))
     else:
-        draw.rounded_rectangle([cx - 120, cy - 120, cx + 120, cy + 100], radius=35, fill=(50, 75, 130))
+        draw.rounded_rectangle([cx - 110, cy - 110, cx + 110, cy + 90], radius=30, fill=(50, 75, 130))
 
     badge_y = int(height * 0.12)
     draw.rounded_rectangle([int(width * 0.12), badge_y, int(width * 0.88), badge_y + 60], radius=30, fill=(15, 20, 35, 200))
@@ -398,12 +352,14 @@ def normalize_scene_clip_video(input_clip, output_mp4, duration=10.0, fps=60, wi
         raise RuntimeError(f"Clip normalization failed: {p.stderr}")
     return output_mp4
 
-def render_scene_clip_from_image(image_source, output_mp4, duration=10.5, fps=60, width=720, height=1280):
+def render_scene_clip_from_image(image_source, output_mp4, duration=10.5, fps=60, width=720, height=1280, scene_idx=0):
     """
-    Render standardized 720x1280 9:16 vertical video clip from static frame for 10.5s duration.
+    Render standardized 720x1280 9:16 vertical 60 FPS video clip with cinematic Ken Burns camera motion.
     """
     os.makedirs(os.path.dirname(os.path.abspath(output_mp4)), exist_ok=True)
+    total_frames = int(duration * fps)
     
+    # Smooth cinematic camera motion per scene
     cmd = [
         FFMPEG, "-y",
         "-loop", "1",
@@ -413,9 +369,9 @@ def render_scene_clip_from_image(image_source, output_mp4, duration=10.5, fps=60
         "-vf", (
             f"scale={width}:{height}:force_original_aspect_ratio=increase,"
             f"crop={width}:{height},"
+            f"zoompan=z='min(zoom+0.00035,1.15)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d={total_frames}:s={width}x{height}:fps={fps},"
             f"setsar=1,"
-            f"format=yuv420p,"
-            f"fps={fps}"
+            f"format=yuv420p"
         ),
         "-c:v", "libx264",
         "-preset", "veryfast",

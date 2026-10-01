@@ -120,48 +120,72 @@ const STORY_PRESETS = {
         title: 'Chef Fork Gives Briefing',
         character: 'Chef Fork',
         voice_type: 'hero',
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '+18Hz',
+        rate: '+8%',
         dialogue: 'Suno sabhi utensils! Fridge ka door band ho chuka hai, kitchen lights off hain. Tonight is Operation Golden Toast!',
-        visual_prompt: 'Pixar 3D style shiny silver fork with cute cartoon chef hat and expressive eyes, standing on marble kitchen counter, moonlight beam, 9:16 vertical.'
+        image_path: 'assets/pixar-characters/kitchen/chef_fork.jpg',
+        visual_prompt: 'A high-quality 3D Pixar Disney animation character. A cute friendly shiny silver fork character wearing a tiny white cartoon chef hat with big expressive eyes and a warm smile, standing proudly on a clean marble kitchen counter, soft moonlight beam shining through window, 3D Pixar cartoon render, vertical 9:16'
       },
       {
         scene_index: 2,
         title: 'Nervous Pepper Shaker',
         character: 'Pepper Shaker',
         voice_type: 'squeaky',
+        voice: 'hi-IN-SwaraNeural',
+        pitch: '+32Hz',
+        rate: '+5%',
         dialogue: 'Lekin Chef! Agar kisine sneeze kar diya toh microwave ka alarm baj jayega! Hum sab Pakde jayenge!',
-        visual_prompt: 'Pixar 3D style cute glass pepper shaker shivering with wide nervous cartoon eyes, spice dust particles sparkling in moonlight, 9:16 vertical.'
+        image_path: 'assets/pixar-characters/kitchen/pepper_shaker.jpg',
+        visual_prompt: 'A high-quality 3D Pixar Disney animation character. A cute transparent glass pepper shaker character shivering and trembling with wide comical nervous cartoon eyes, black pepper dust sparkling in moonlight, standing on marble kitchen counter, 3D Pixar cartoon render, vertical 9:16'
       },
       {
         scene_index: 3,
         title: 'Spatula Speed Flips',
         character: 'Spatula Master',
         voice_type: 'fast_tech',
+        voice: 'hi-IN-SwaraNeural',
+        pitch: '+18Hz',
+        rate: '+10%',
         dialogue: 'Chill karo dosto! Meri 360-degree flip technique ke aage koi toast bach nahi sakta! Butter ready, pan hot!',
-        visual_prompt: 'Pixar 3D style vibrant red silicone spatula doing dynamic acrobatic flip in mid-air, glowing kitchen ambient lights, 9:16 vertical.'
+        image_path: 'assets/pixar-characters/kitchen/spatula_master.jpg',
+        visual_prompt: 'A high-quality 3D Pixar Disney animation character. A vibrant red silicone spatula character with cute acrobatic eyes performing a dynamic mid-air flip over a frying pan on a modern kitchen stove, warm glowing kitchen lights, 3D Pixar cartoon render, vertical 9:16'
       },
       {
         scene_index: 4,
         title: 'Heavyweight Chef Knife',
         character: 'Chef Knife',
         voice_type: 'deep_hero',
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '-22Hz',
+        rate: '-8%',
         dialogue: 'Rasta saaf hai. Mai hu Knife commander. Clean cut, zero noise. Toast buttering begins now!',
-        visual_prompt: 'Pixar 3D style sturdy polished chef knife with heroic mask and confident smile standing guarding the cutting board, 9:16 vertical.'
+        image_path: 'assets/pixar-characters/kitchen/chef_knife.jpg',
+        visual_prompt: 'A high-quality 3D Pixar Disney animation character. A sturdy polished steel chef knife character with a friendly confident hero expression, standing proudly guarding a wooden cutting board on a clean kitchen counter, soft moonlight and kitchen ambient light, 3D Pixar cartoon render, vertical 9:16'
       },
       {
         scene_index: 5,
         title: 'Golden Toast Victory',
         character: 'Kitchen Squad',
         voice_type: 'action',
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '+14Hz',
+        rate: '+6%',
         dialogue: 'Mission accomplished! Crunchy, golden, and delicious! Hamari kitchen squad kabhi haar nahi manti!',
-        visual_prompt: 'Pixar 3D style golden crispy toast glowing with butter steam, all cute kitchen utensils cheering and celebrating together, 9:16 vertical.'
+        image_path: 'assets/pixar-characters/kitchen/kitchen_squad.jpg',
+        visual_prompt: 'A high-quality 3D Pixar Disney animation scene. The cute kitchen utensils squad (fork with chef hat, shivering pepper shaker, red spatula, and chef knife) celebrating together around a golden crispy buttery toast on a marble kitchen counter, sparkling fairy bokeh sparks, festive kitchen mood, 3D Pixar render, vertical 9:16'
       },
       {
         scene_index: 6,
         title: 'Kitchen Outro & CTA',
         character: 'Chef Fork',
         voice_type: 'outro',
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '+20Hz',
+        rate: '+8%',
         dialogue: 'Aisi aur mazedaar kitchen stories dekhne ke liye video ko Like karo aur channel Subscribe karna mat bhoolna!',
-        visual_prompt: 'Pixar 3D style friendly chef fork waving with shiny spark stars, thumbs up subscribe badge, 9:16 vertical.'
+        image_path: 'assets/pixar-characters/kitchen/kitchen_outro.jpg',
+        visual_prompt: 'A high-quality 3D Pixar Disney animation scene. The cute fork character with chef hat waving happily at the camera with a thumbs up badge, golden glowing like and subscribe icons floating in the cozy kitchen air with sparkling confetti bokeh, 3D Pixar render, vertical 9:16'
       }
     ]
   },
@@ -176,48 +200,72 @@ const STORY_PRESETS = {
         title: 'Smartphone Panics at 1%',
         character: 'Smartphone Boss',
         voice_type: 'hero',
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '+18Hz',
+        rate: '+8%',
         dialogue: 'Emergency alert! Battery sirf 1 percent bachi hai aur screen dim ho rahi hai! Mujhe turant power chahiye!',
-        visual_prompt: 'Pixar 3D style sleek smartphone character with glowing red 1% battery icon on screen, sweating cartoon expression, 9:16 vertical.'
+        image_path: 'assets/pixar-characters/tech/smartphone_boss.jpg',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. A sleek friendly cute smartphone character with big expressive cartoon eyes looking anxious with a glowing red low battery 1% icon on its shiny glass screen, sweating comical cartoon drops, standing on a modern wooden desk, vibrant dramatic lighting, 3D Pixar cartoon render, vertical 9:16'
       },
       {
         scene_index: 2,
         title: 'Nervous Earbuds Shiver',
         character: 'Wireless Earbuds',
         voice_type: 'squeaky',
+        voice: 'hi-IN-SwaraNeural',
+        pitch: '+32Hz',
+        rate: '+5%',
         dialogue: 'Oh no! Agar phone switch off ho gaya toh humara party playlist band ho jayega! Hum bekar ho jayenge!',
-        visual_prompt: 'Pixar 3D style twin white wireless earbuds hopping with worried cartoon eyes, musical notes hovering in air, 9:16 vertical.'
+        image_path: 'assets/pixar-characters/tech/wireless_earbuds.jpg',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. Twin cute white glossy wireless earbuds characters hopping and shivering with comical wide worried cartoon eyes, musical notes floating in air, sitting on a modern wooden desk, vibrant colorful ambient lighting, 3D Pixar render, vertical 9:16'
       },
       {
         scene_index: 3,
         title: 'Power Bank Heavyweight Hero',
         character: 'Power Bank',
         voice_type: 'deep_hero',
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '-22Hz',
+        rate: '-8%',
         dialogue: 'Ghabrao mat! 20000 mAh ka powerhouse mai hu! Rapid charge delivery shuru karta hu!',
-        visual_prompt: 'Pixar 3D style muscular matte black power bank with glowing green battery bars flexing heroically, 9:16 vertical.'
+        image_path: 'assets/pixar-characters/tech/power_bank.jpg',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. A heavyweight matte black power bank character with muscular cartoon arms flexing heroically, smiling confident eyes, glowing green battery LED bars illuminated on body, standing proudly on a wooden desk, dramatic heroic studio lighting, 3D Pixar render, vertical 9:16'
       },
       {
         scene_index: 4,
         title: 'Turbo Cable Speed Connection',
         character: 'Turbo Cable',
         voice_type: 'fast_tech',
+        voice: 'hi-IN-SwaraNeural',
+        pitch: '+18Hz',
+        rate: '+10%',
         dialogue: 'Braided Type-C cable active! High-speed 65W fast charging in 3, 2, 1... Connected!',
-        visual_prompt: 'Pixar 3D style neon blue braided USB cable zooming and plugging in with glowing lightning spark effects, 9:16 vertical.'
+        image_path: 'assets/pixar-characters/tech/turbo_cable.jpg',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. A cute super-speed neon blue braided Type-C USB charging cable character with expressive anime cartoon eyes zooming across a wooden desk with glowing electric blue lightning spark particles, connecting heroically, 3D Pixar render, vertical 9:16'
       },
       {
         scene_index: 5,
         title: '100% Supercharged Party',
         character: 'Gadget Squad',
         voice_type: 'action',
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '+14Hz',
+        rate: '+6%',
         dialogue: '100 percent supercharged! Lights, music, gaming mode activated! Squad is back in full power!',
-        visual_prompt: 'Pixar 3D style fully charged phone radiating vibrant rainbow neon glow, power bank and earbuds dancing with joy, 9:16 vertical.'
+        image_path: 'assets/pixar-characters/tech/gadget_squad.jpg',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. The entire smart gadget squad grouped together on a wooden desk: the smartphone radiating colorful neon lights at 100 percent battery, twin white wireless earbuds dancing happily, the muscular black power bank smiling with full green LEDs, and the glowing blue turbo cable celebrating together, vibrant studio party lights, festive bokeh sparks, 3D Pixar render, vertical 9:16'
       },
       {
         scene_index: 6,
         title: 'Tech Outro & CTA',
         character: 'Smartphone Boss',
         voice_type: 'outro',
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '+20Hz',
+        rate: '+8%',
         dialogue: 'Video pasand aayi toh jaldi se Like aur Subscribe ka button dabao aur apna phone model comment karo!',
-        visual_prompt: 'Pixar 3D style cheerful smartphone taking a selfie with gadget squad, like and subscribe icons bursting with confetti, 9:16 vertical.'
+        image_path: 'assets/pixar-characters/tech/tech_outro.jpg',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. Celebratory finale of the cute smartphone character smiling warmly and waving at the camera taking a selfie with its gadget friends, golden glowing like and subscribe icons floating in air with colorful festive confetti bokeh, 3D Pixar render, vertical 9:16'
       }
     ]
   }
