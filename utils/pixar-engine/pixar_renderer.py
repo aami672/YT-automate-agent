@@ -1,11 +1,13 @@
 """
-Universal Pixar 3D Animated Video Renderer
-Produces 60 FPS 9:16 vertical animated videos (1 min, 2 min, 3 min) with:
-- Multi-character cartoon TTS voices (custom pitch/rate per character)
-- Acoustic Disney/Pixar style background music + authentic School Bell SFX
-- Zero-jitter smooth 60 FPS motion rendering
-- Cinematic dissolve transitions (fade-in, xfade cross-dissolves, fade-out to black)
-- Exact volume balancing & fade control
+Universal Pixar 3D Animated Video Renderer (V3 Engine)
+Exact generation sequence and format ported from ai_reels_project:
+- Multi-character high-pitch cartoon TTS voices (custom pitch/rate per character)
+- apad per-scene audio alignment & slot padding (9.54s / 10.04s)
+- Realistic physical school bell chime SFX synthesis (numpy inharmonic modal frequencies)
+- Upbeat 124 BPM Disney/Pixar acoustic cartoon BGM (Marimba, Ukulele, Glockenspiel in C-G-Am-F major)
+- 3D reference character images loading & strict 720x1280 (9:16 vertical) normalization
+- Cinematic dissolve crossfades (xfade=transition=fade) with intro fade-in and outro fade-out
+- Master multi-track audio mixing ([a_diag][a_bgm][a_bell]amix) and progressive 60 FPS H.264 MP4 delivery.
 """
 
 import sys
@@ -17,10 +19,19 @@ import struct
 import asyncio
 import subprocess
 import argparse
+import shutil
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
+import numpy as np
 
-# Find ffmpeg binary
+# Ensure UTF-8 stdout on Windows
+if sys.stdout.encoding != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
+# Find verified high-performance ffmpeg binary
 def get_ffmpeg_path():
     env_path = os.environ.get("FFMPEG_PATH")
     if env_path and os.path.exists(env_path):
@@ -40,113 +51,165 @@ def get_ffmpeg_path():
 
 FFMPEG = get_ffmpeg_path()
 
-def run_cmd(cmd):
-    p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+def run_cmd(cmd, cwd=None):
+    p = subprocess.run(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace")
     if p.returncode != 0:
-        print(f"Command failed: {' '.join(cmd)}\nError: {p.stderr}", file=sys.stderr)
+        print(f"Command failed: {' '.join(cmd)}\nError: {p.stderr}", file=sys.stderr, flush=True)
     return p.returncode == 0
 
 def get_media_duration(file_path):
-    cmd = [
-        FFMPEG, "-i", str(file_path)
-    ]
-    p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    cmd = [FFMPEG, "-i", str(file_path)]
+    p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace")
     for line in p.stderr.split("\n"):
         if "Duration:" in line:
-            # Duration: 00:00:09.50, start: ...
-            parts = line.split("Duration:")[1].split(",")[0].strip()
-            h, m, s = parts.split(":")
-            return float(h)*3600 + float(m)*60 + float(s)
+            try:
+                parts = line.split("Duration:")[1].split(",")[0].strip().split(":")
+                return float(parts[0]) * 3600 + float(parts[1]) * 60 + float(parts[2])
+            except Exception:
+                pass
     return 0.0
 
-import numpy as np
-
-def create_physical_school_bell(output_path, duration=3.5, sample_rate=44100):
-    """Synthesize a realistic physical electric school bell sound with numpy vectorization."""
-    t = np.linspace(0, duration, int(duration * sample_rate), endpoint=False)
-    hammer_freq = 18.0
-    hammer = (np.sin(2 * np.pi * hammer_freq * t) + 1.0) / 2.0
-    hammer_decay = np.exp(-t * 0.8)
+def create_physical_school_bell(output_path, duration=4.0, sample_rate=44100):
+    """
+    Synthesize authentic electric school gong bell with mechanical hammer
+    and inharmonic brass/steel bell modal frequencies.
+    """
+    t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
+    bell_wave = np.zeros_like(t)
     
-    base_freqs = [520.0, 880.0, 1520.0, 2150.0, 3180.0]
-    weights = [0.45, 0.35, 0.25, 0.18, 0.12]
+    modes = [
+        (910.0, 0.40, 1.2),
+        (1320.0, 0.35, 1.5),
+        (1840.0, 0.25, 2.0),
+        (2610.0, 0.18, 2.5),
+        (3580.0, 0.12, 3.2),
+        (4920.0, 0.08, 4.0),
+        (6400.0, 0.05, 5.0)
+    ]
     
-    sample = np.zeros_like(t)
-    for f, w in zip(base_freqs, weights):
-        decay = np.exp(-t * (1.2 + f / 1200.0))
-        phase = 2 * np.pi * f * t + 0.3 * np.sin(2 * np.pi * 37.0 * t)
-        sample += w * np.sin(phase) * (0.6 * hammer * hammer_decay + 0.4 * decay)
+    ring_duration = 1.8
+    hammer_freq = 16.5
+    num_strikes = int(ring_duration * hammer_freq)
+    
+    for i in range(num_strikes):
+        t_strike = i / hammer_freq
+        mask = t >= t_strike
+        dt = t[mask] - t_strike
         
-    hum = 0.3 * np.sin(2 * np.pi * 440.0 * t) * np.exp(-t * 0.7)
-    sample = (sample + hum) * 0.8
-    sample = np.clip(sample, -1.0, 1.0)
-    int_samples = (sample * 32767.0).astype(np.int16)
-    
-    stereo = np.column_stack((int_samples, int_samples))
-    
+        clapper = 0.3 * np.exp(-dt * 200.0) * (np.sin(2 * np.pi * 3200 * dt) + 0.5 * np.random.randn(len(dt)))
+        bell_wave[mask] += clapper * 0.2
+        
+        for freq, amp, decay_rate in modes:
+            f_detuned = freq + np.random.uniform(-3, 3)
+            mode_sig = amp * np.sin(2 * np.pi * f_detuned * dt) * np.exp(-dt * (decay_rate * 3.5))
+            bell_wave[mask] += mode_sig * 0.15
+
+    mask_sustain = t >= ring_duration
+    dt_sustain = t[mask_sustain] - ring_duration
+    for freq, amp, decay_rate in modes:
+        sustain_sig = (amp * 0.6) * np.sin(2 * np.pi * freq * dt_sustain) * np.exp(-dt_sustain * 1.4)
+        sustain_sig *= (1.0 + 0.25 * np.sin(2 * np.pi * 4.5 * dt_sustain))
+        bell_wave[mask_sustain] += sustain_sig
+
+    max_amp = np.max(np.abs(bell_wave))
+    if max_amp > 0:
+        bell_wave = (bell_wave / max_amp) * 0.90
+        
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     with wave.open(output_path, "w") as wf:
-        wf.setnchannels(2)
+        wf.setnchannels(1)
         wf.setsampwidth(2)
         wf.setframerate(sample_rate)
-        wf.writeframes(stereo.tobytes())
+        int_data = (bell_wave * 32767).astype(np.int16)
+        wf.writeframes(int_data.tobytes())
+        
     return output_path
 
-def create_pixar_bgm(output_path, duration=65.0, sample_rate=44100):
-    """Fast vectorized Disney/Pixar acoustic cartoon background music."""
+def create_cheerful_cartoon_bgm(output_path, total_duration=65.0, sample_rate=44100):
+    """
+    Synthesize upbeat 124 BPM Disney/Pixar acoustic cartoon BGM with
+    Marimba, Ukulele strumming, Tuba pluck, and shakers in C-G-Am-F.
+    """
+    t = np.linspace(0, total_duration, int(sample_rate * total_duration), endpoint=False)
+    bgm_audio = np.zeros_like(t)
+    
     bpm = 124.0
     beat_dur = 60.0 / bpm
-    pattern_beats = 8.0  # 16 notes
-    loop_dur = pattern_beats * beat_dur
     
-    t_loop = np.linspace(0, loop_dur, int(loop_dur * sample_rate), endpoint=False)
+    NOTE_C4 = 261.63
+    NOTE_E4 = 329.63
+    NOTE_G4 = 392.00
+    NOTE_A4 = 440.00
+    NOTE_B4 = 493.88
+    NOTE_C5 = 523.25
+    NOTE_D5 = 587.33
+    NOTE_E5 = 659.25
+    NOTE_F5 = 698.46
+    NOTE_G5 = 783.99
+    NOTE_A5 = 880.00
     
-    scale = [261.63, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99]
-    pattern = [0, 2, 4, 3, 2, 4, 6, 7, 5, 4, 2, 3, 1, 2, 4, 2]
-    note_dur = beat_dur / 2.0
+    chords = [
+        [NOTE_C4, NOTE_E4, NOTE_G4, NOTE_C5],
+        [NOTE_G4, NOTE_B4, NOTE_D5, NOTE_G5],
+        [NOTE_A4, NOTE_C5, NOTE_E5, NOTE_A5],
+        [NOTE_C4 * (4.0/3.0), NOTE_A4, NOTE_C5, NOTE_F5],
+    ]
     
-    marimba = np.zeros_like(t_loop)
-    for i, p_idx in enumerate(pattern):
-        n_start = i * note_dur
-        n_end = (i + 1) * note_dur
-        mask = (t_loop >= n_start) & (t_loop < n_end)
-        t_note = t_loop[mask] - n_start
-        freq = scale[p_idx]
-        note_env = np.exp(-t_note * 9.0)
-        marimba[mask] = np.sin(2 * np.pi * freq * t_loop[mask]) * note_env + 0.3 * np.sin(2 * np.pi * freq * 2 * t_loop[mask]) * (note_env ** 1.5)
+    total_beats = int(total_duration / beat_dur)
+    
+    for beat in range(total_beats):
+        t_beat = beat * beat_dur
+        chord_idx = (beat // 4) % len(chords)
+        chord = chords[chord_idx]
         
-    bass_pattern = [130.81, 164.81, 196.00, 174.61]
-    bass_dur = beat_dur * 2
-    bass = np.zeros_like(t_loop)
-    pad = np.zeros_like(t_loop)
-    for i, b_freq in enumerate(bass_pattern):
-        b_start = i * bass_dur
-        b_end = (i + 1) * bass_dur
-        mask = (t_loop >= b_start) & (t_loop < b_end)
-        t_bass = t_loop[mask] - b_start
-        bass_env = np.exp(-t_bass * 3.5)
-        bass[mask] = np.sin(2 * np.pi * b_freq * t_loop[mask]) * bass_env * 0.6
-        pad[mask] = 0.15 * np.sin(2 * np.pi * (b_freq * 2) * t_loop[mask]) + 0.10 * np.sin(2 * np.pi * (b_freq * 3) * t_loop[mask])
+        # 1. Bass / Tuba pluck on downbeat
+        if beat % 2 == 0:
+            root_freq = chord[0] / 2.0
+            mask = (t >= t_beat) & (t < t_beat + beat_dur * 1.5)
+            dt = t[mask] - t_beat
+            bass_pluck = 0.5 * np.sin(2 * np.pi * root_freq * dt) * np.exp(-dt * 6.0)
+            bass_pluck += 0.2 * np.sin(2 * np.pi * root_freq * 2 * dt) * np.exp(-dt * 10.0)
+            bgm_audio[mask] += bass_pluck
+            
+        # 2. Ukulele / Acoustic Strum on offbeats
+        strum_time = t_beat + beat_dur * 0.5
+        mask_strum = (t >= strum_time) & (t < strum_time + beat_dur * 0.8)
+        dt_strum = t[mask_strum] - strum_time
+        for n in chord:
+            strum_wave = 0.15 * np.sin(2 * np.pi * n * dt_strum) * np.exp(-dt_strum * 12.0)
+            strum_wave += 0.05 * np.sin(2 * np.pi * n * 2 * dt_strum) * np.exp(-dt_strum * 18.0)
+            bgm_audio[mask_strum] += strum_wave
+            
+        # 3. Playful Marimba 16th note pattern
+        for sub in range(4):
+            t_sub = t_beat + sub * (beat_dur / 4.0)
+            note = chord[(beat * 4 + sub) % len(chord)]
+            mask_sub = (t >= t_sub) & (t < t_sub + beat_dur * 0.4)
+            dt_sub = t[mask_sub] - t_sub
+            marimba = 0.25 * np.sin(2 * np.pi * note * dt_sub) * np.exp(-dt_sub * 22.0)
+            marimba += 0.15 * np.sin(2 * np.pi * note * 3 * dt_sub) * np.exp(-dt_sub * 35.0)
+            bgm_audio[mask_sub] += marimba
+            
+        # 4. Light cute shaker
+        for s in range(2):
+            t_shaker = t_beat + s * (beat_dur / 2.0)
+            mask_shaker = (t >= t_shaker) & (t < t_shaker + 0.04)
+            dt_shaker = t[mask_shaker] - t_shaker
+            noise = (np.random.rand(len(dt_shaker)) * 2 - 1) * np.exp(-dt_shaker * 120.0)
+            bgm_audio[mask_shaker] += noise * 0.08
+
+    max_val = np.max(np.abs(bgm_audio))
+    if max_val > 0:
+        bgm_audio = (bgm_audio / max_val) * 0.80
         
-    loop_sig = (marimba * 0.45 + bass * 0.5 + pad * 0.3) * 0.40
-    
-    num_loops = int(np.ceil(duration / loop_dur))
-    full_sig = np.tile(loop_sig, num_loops)[:int(duration * sample_rate)]
-    
-    t_full = np.linspace(0, duration, len(full_sig), endpoint=False)
-    fade_in = np.clip(t_full / 1.0, 0.0, 1.0)
-    fade_out = np.clip((duration - t_full) / 2.0, 0.0, 1.0)
-    full_sig = full_sig * fade_in * fade_out
-    
-    int_sig = (np.clip(full_sig, -1.0, 1.0) * 32767.0).astype(np.int16)
-    stereo = np.column_stack((int_sig, int_sig))
-    
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     with wave.open(output_path, "w") as wf:
-        wf.setnchannels(2)
+        wf.setnchannels(1)
         wf.setsampwidth(2)
         wf.setframerate(sample_rate)
-        wf.writeframes(stereo.tobytes())
+        int_data = (bgm_audio * 32767).astype(np.int16)
+        wf.writeframes(int_data.tobytes())
+        
     return output_path
 
 async def generate_single_tts(text, voice, pitch, rate, output_mp3):
@@ -160,16 +223,60 @@ async def generate_single_tts(text, voice, pitch, rate, output_mp3):
         await communicate.save(output_mp3)
         return True
     except Exception as e:
-        print(f"Edge TTS failed for '{text[:20]}...': {e}", file=sys.stderr)
+        print(f"Edge TTS failed for '{text[:20]}...': {e}", file=sys.stderr, flush=True)
         return False
 
-def render_pixar_frame(prompt_desc, character_name, scene_title, width, height, output_png):
-    """Create a vibrant, clean 9:16 vertical 3D Pixar reference frame."""
+def resolve_character_image(scene, project_root):
+    """Find the best 3D reference image for the scene."""
+    img_path = scene.get("image_path") or scene.get("image")
+    if img_path:
+        p = Path(img_path)
+        if not p.is_absolute():
+            p = project_root / img_path
+        if p.exists():
+            return str(p)
+
+    # Check assets/pixar-characters by character name
+    char_lower = scene.get("character", "").lower()
+    mapping = {
+        "pencil": "pencil_hero.jpg",
+        "eraser": "eraser_panicking.jpg",
+        "sharpener": "sharpener_tech.jpg",
+        "ruler": "ruler_superhero.jpg",
+        "squad": "squad_vertical.jpg",
+        "outro": "outro_vertical.jpg"
+    }
+    for key, filename in mapping.items():
+        if key in char_lower:
+            candidate = project_root / "assets" / "pixar-characters" / filename
+            if candidate.exists():
+                return str(candidate)
+
+    # Check brain directory artifacts
+    brain_dir = Path("C:/Users/Amar's PC/.gemini/antigravity/brain/948aeb55-f992-450a-afe5-fdaa77988433")
+    if brain_dir.exists():
+        brain_map = {
+            "pencil": "pencil_clean_scene1_1790778959181.jpg",
+            "eraser": "perfect_eraser_scene2_1790767774858.jpg",
+            "sharpener": "sharpener_vertical_scene3_1790778982658.jpg",
+            "ruler": "perfect_ruler_scene4_1790767816866.jpg",
+            "squad": "squad_vertical_scene5_1790779257620.jpg",
+            "outro": "outro_vertical_scene6_1790779279652.jpg"
+        }
+        for key, filename in brain_map.items():
+            if key in char_lower:
+                candidate = brain_dir / filename
+                if candidate.exists():
+                    return str(candidate)
+
+    return None
+
+def render_fallback_frame(character_name, scene_title, width, height, output_png):
+    """Render high quality fallback 9:16 frame if no 3D asset is available."""
     os.makedirs(os.path.dirname(os.path.abspath(output_png)), exist_ok=True)
-    img = Image.new("RGB", (width, height), color=(28, 35, 50))
+    img = Image.new("RGB", (width, height), color=(25, 30, 55))
     draw = ImageDraw.Draw(img)
     
-    # 1. Vibrant 3D background gradient (Disney/Pixar cinematic lighting)
     top_color = (25, 30, 55)
     bottom_color = (80, 110, 160)
     for y in range(height):
@@ -178,99 +285,38 @@ def render_pixar_frame(prompt_desc, character_name, scene_title, width, height, 
         b = int(top_color[2] + (bottom_color[2] - top_color[2]) * (y / height))
         draw.line([(0, y), (width, y)], fill=(r, g, b))
         
-    # 2. Warm rim light / ambient spotlight circle
-    spot_center = (int(width * 0.5), int(height * 0.42))
-    spot_radius = int(width * 0.48)
-    for rad in range(spot_radius, 0, -6):
-        alpha = int(25 * (1.0 - rad / spot_radius))
-        draw.ellipse([spot_center[0] - rad, spot_center[1] - rad, spot_center[0] + rad, spot_center[1] + rad],
-                     fill=(top_color[0] + alpha * 3, top_color[1] + alpha * 4, top_color[2] + alpha * 5))
-                     
-    # 3. Soft ground shadow
-    shadow_y = int(height * 0.68)
-    draw.ellipse([int(width * 0.22), shadow_y, int(width * 0.78), shadow_y + 40], fill=(15, 20, 35))
-
-    # 4. Render main 3D character silhouette / icon
-    char_lower = character_name.lower()
     cx, cy = int(width * 0.5), int(height * 0.42)
+    char_lower = character_name.lower()
     
     if "pencil" in char_lower:
-        # Upright wooden yellow pencil with pink eraser on top & cute Pixar eyes (NO legs, NO tail)
-        # Eraser top
         draw.rounded_rectangle([cx - 45, cy - 180, cx + 45, cy - 130], radius=15, fill=(255, 140, 170))
-        # Metal ferrule band
         draw.rectangle([cx - 48, cy - 130, cx + 48, cy - 100], fill=(210, 215, 225))
-        draw.line([cx - 48, cy - 115, cx + 48, cy - 115], fill=(140, 145, 155), width=2)
-        # Yellow pencil body
         draw.rounded_rectangle([cx - 45, cy - 100, cx + 45, cy + 110], radius=8, fill=(255, 195, 25))
-        # Sharpened wood cone
         draw.polygon([(cx - 45, cy + 110), (cx + 45, cy + 110), (cx, cy + 175)], fill=(240, 215, 175))
-        # Graphite tip
         draw.polygon([(cx - 15, cy + 155), (cx + 15, cy + 155), (cx, cy + 175)], fill=(40, 40, 45))
-        # Pixar expressive eyes
         draw.ellipse([cx - 30, cy - 35, cx - 8, cy - 10], fill=(255, 255, 255))
         draw.ellipse([cx - 24, cy - 30, cx - 12, cy - 16], fill=(30, 40, 60))
-        draw.ellipse([cx - 20, cy - 28, cx - 15, cy - 22], fill=(255, 255, 255))  # highlight
         draw.ellipse([cx + 8, cy - 35, cx + 30, cy - 10], fill=(255, 255, 255))
         draw.ellipse([cx + 12, cy - 30, cx + 24, cy - 16], fill=(30, 40, 60))
-        draw.ellipse([cx + 16, cy - 28, cx + 21, cy - 22], fill=(255, 255, 255))
-        # Happy smile
         draw.arc([cx - 18, cy - 5, cx + 18, cy + 20], start=10, end=170, fill=(40, 25, 20), width=4)
-        
     elif "eraser" in char_lower:
-        # Pink/White wedge eraser with surprised cartoon expression
         draw.rounded_rectangle([cx - 75, cy - 90, cx + 75, cy + 90], radius=25, fill=(255, 130, 160))
-        draw.rounded_rectangle([cx - 65, cy + 10, cx + 65, cy + 80], radius=15, fill=(70, 130, 240))  # paper sleeve
-        # Panicky cartoon eyes
+        draw.rounded_rectangle([cx - 65, cy + 10, cx + 65, cy + 80], radius=15, fill=(70, 130, 240))
         draw.ellipse([cx - 45, cy - 60, cx - 10, cy - 15], fill=(255, 255, 255))
-        draw.ellipse([cx - 32, cy - 48, cx - 18, cy - 30], fill=(20, 20, 25))
         draw.ellipse([cx + 10, cy - 60, cx + 45, cy - 15], fill=(255, 255, 255))
-        draw.ellipse([cx + 18, cy - 48, cx + 32, cy - 30], fill=(20, 20, 25))
-        # Surprised 'O' mouth
         draw.ellipse([cx - 15, cy - 5, cx + 15, cy + 25], fill=(80, 20, 30))
-        
     elif "sharpener" in char_lower:
-        # Metallic blue sharpener with shiny blade & tech glasses
         draw.rounded_rectangle([cx - 70, cy - 80, cx + 70, cy + 80], radius=18, fill=(45, 150, 245))
-        # Silver steel blade & screw
         draw.rounded_rectangle([cx - 35, cy - 55, cx + 35, cy + 55], radius=6, fill=(215, 220, 230))
-        draw.ellipse([cx - 8, cy - 8, cx + 8, cy + 8], fill=(120, 125, 135))
-        # Cute tech visor/eyes
-        draw.rounded_rectangle([cx - 50, cy - 70, cx + 50, cy - 35], radius=12, fill=(25, 30, 45))
-        draw.ellipse([cx - 35, cy - 62, cx - 15, cy - 42], fill=(80, 255, 200))
-        draw.ellipse([cx + 15, cy - 62, cx + 35, cy - 42], fill=(80, 255, 200))
-        # Clever grin
-        draw.arc([cx - 20, cy + 10, cx + 20, cy + 40], start=20, end=160, fill=(20, 20, 25), width=4)
-
     elif "ruler" in char_lower:
-        # Wooden/acrylic ruler standing like superhero with measurement markings
         draw.rounded_rectangle([cx - 35, cy - 190, cx + 35, cy + 130], radius=10, fill=(245, 175, 55))
-        # Ruler tick marks
-        for ty in range(cy - 170, cy + 110, 18):
-            draw.line([cx + 10, ty, cx + 30, ty], fill=(40, 30, 20), width=3)
-        # Superhero cape & heroic eyes
         draw.polygon([(cx - 35, cy - 80), (cx - 95, cy + 120), (cx - 35, cy + 40)], fill=(235, 45, 45))
-        draw.ellipse([cx - 25, cy - 130, cx - 5, cy - 105], fill=(255, 255, 255))
-        draw.ellipse([cx - 20, cy - 125, cx - 8, cy - 110], fill=(20, 25, 30))
-        draw.ellipse([cx + 5, cy - 130, cx + 25, cy - 105], fill=(255, 255, 255))
-        draw.ellipse([cx + 8, cy - 125, cx + 20, cy - 110], fill=(20, 25, 30))
-        draw.arc([cx - 15, cy - 95, cx + 15, cy - 75], start=10, end=170, fill=(40, 25, 20), width=4)
-
     else:
-        # Squad / Adventure scene
         draw.rounded_rectangle([cx - 120, cy - 120, cx + 120, cy + 100], radius=35, fill=(50, 75, 130))
-        # Character group icons
-        draw.rounded_rectangle([cx - 85, cy - 80, cx - 25, cy + 60], radius=15, fill=(255, 195, 25))
-        draw.rounded_rectangle([cx - 15, cy - 50, cx + 45, cy + 60], radius=15, fill=(255, 130, 160))
-        draw.rounded_rectangle([cx + 35, cy - 70, cx + 85, cy + 60], radius=15, fill=(45, 150, 245))
 
-    # 5. Stylized Title & Character Badge Header (Top & Bottom safe zones)
     badge_y = int(height * 0.12)
     draw.rounded_rectangle([int(width * 0.12), badge_y, int(width * 0.88), badge_y + 60], radius=30, fill=(15, 20, 35, 200))
-    # Outer stroke
     draw.rounded_rectangle([int(width * 0.12), badge_y, int(width * 0.88), badge_y + 60], radius=30, outline=(255, 215, 0), width=2)
-    
-    # Text caption (simple PIL text drawing)
     draw.text((int(width * 0.5), badge_y + 30), f"★ {character_name.upper()} ★", fill=(255, 235, 150), anchor="mm")
     draw.text((int(width * 0.5), int(height * 0.82)), scene_title, fill=(255, 255, 255), anchor="mm")
     draw.text((int(width * 0.5), int(height * 0.86)), "3D Disney/Pixar Animated Cinema", fill=(180, 210, 255), anchor="mm")
@@ -278,149 +324,200 @@ def render_pixar_frame(prompt_desc, character_name, scene_title, width, height, 
     img.save(output_png, quality=95)
     return output_png
 
-def render_scene_clip(image_png, audio_mp3, output_mp4, duration, fps=60, width=720, height=1280):
-    """Render a smooth 60 FPS video clip with subtle cinematic motion and dialogue audio."""
+def render_scene_clip_exact(image_source, output_mp4, duration, fps=60, width=720, height=1280):
+    """
+    Render standardized 720x1280 9:16 vertical video clip with strict aspect ratio
+    and smooth progressive 60 FPS output.
+    """
     os.makedirs(os.path.dirname(os.path.abspath(output_mp4)), exist_ok=True)
     
     cmd = [
         FFMPEG, "-y",
         "-loop", "1",
         "-framerate", str(fps),
-        "-i", str(image_png),
-        "-i", str(audio_mp3),
+        "-i", str(image_source),
         "-t", f"{duration:.2f}",
         "-vf", (
             f"scale={width}:{height}:force_original_aspect_ratio=increase,"
             f"crop={width}:{height},"
+            f"setsar=1,"
             f"format=yuv420p,"
             f"fps={fps}"
         ),
         "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "16",
+        "-preset", "veryfast",
+        "-crf", "17",
         "-pix_fmt", "yuv420p",
-        "-c:a", "aac",
-        "-b:a", "192k",
         str(output_mp4)
     ]
-    p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace")
     if p.returncode != 0:
-        print(f"FFmpeg render failed for clip {output_mp4}:\n{p.stderr}", file=sys.stderr)
-        raise RuntimeError(f"FFmpeg render exited with code {p.returncode}: {p.stderr}")
+        print(f"FFmpeg render failed for clip {output_mp4}:\n{p.stderr}", file=sys.stderr, flush=True)
+        raise RuntimeError(f"FFmpeg render failed: {p.stderr}")
     return output_mp4
 
-def assemble_master_with_dissolves(scene_clips, dialogue_tracks, bgm_wav, bell_wav, output_master_mp4, fps=60):
+async def create_cartoon_audio_tracks(storyboard, audio_dir):
     """
-    Assemble all scene clips using smooth xfade cross dissolves,
-    fade-in from black, fade-out to black, balanced multi-layer audio, and 60 FPS output.
+    Generate distinct high-pitch cartoon character voiceovers, probe durations,
+    pad with apad to slot times, and create master_dialogue.mp3.
     """
-    os.makedirs(os.path.dirname(os.path.abspath(output_master_mp4)), exist_ok=True)
-    num_scenes = len(scene_clips)
-    temp_dir = Path(output_master_mp4).parent
+    print("[1/4] 🎙️ Generating Distinct Cartoon Character Voiceovers & apad padding...", flush=True)
+    os.makedirs(audio_dir, exist_ok=True)
+    scene_audios = []
     
-    # 1. Measure clip durations
-    durations = [get_media_duration(c) for c in scene_clips]
-    transition_dur = 0.50  # 0.5s xfade between scene cuts
+    num_scenes = len(storyboard)
+    for idx, sc in enumerate(storyboard):
+        raw_audio = os.path.join(audio_dir, f"scene_{idx}_raw.mp3")
+        padded_audio = os.path.join(audio_dir, f"scene_{idx}_padded.mp3")
+        
+        voice = sc.get("voice", "hi-IN-MadhurNeural")
+        rate = sc.get("rate", "+8%")
+        pitch = sc.get("pitch", "+18Hz")
+        text = sc.get("dialogue", "")
+        
+        await generate_single_tts(text, voice, pitch, rate, raw_audio)
+        
+        # Probe speech duration
+        dur = get_media_duration(raw_audio)
+        if dur <= 0:
+            dur = 7.0
+            
+        slot_dur = 9.54 if idx < num_scenes - 1 else 10.04
+        pad_dur = max(0.0, slot_dur - dur)
+        
+        cmd_pad = [
+            FFMPEG, "-y",
+            "-i", raw_audio,
+            "-af", f"apad=pad_dur={pad_dur:.2f}",
+            "-t", f"{slot_dur:.2f}",
+            padded_audio
+        ]
+        subprocess.run(cmd_pad, capture_output=True)
+        scene_audios.append(padded_audio)
+        print(f"  [+] Scene {idx+1}/{num_scenes} ({sc.get('character', 'Character')}): Voice={voice} (Pitch: {pitch}, Rate: {rate}) | Speech={dur:.2f}s (Padded={pad_dur:.2f}s)", flush=True)
+
+    concat_txt = os.path.join(audio_dir, "audio_concat.txt")
+    with open(concat_txt, "w", encoding="utf-8") as f:
+        for p in scene_audios:
+            rel = os.path.basename(p)
+            f.write(f"file '{rel}'\n")
+            
+    master_dialogue = os.path.join(audio_dir, "master_dialogue.mp3")
+    cmd_concat = [FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", "audio_concat.txt", "-c", "copy", master_dialogue]
+    subprocess.run(cmd_concat, cwd=audio_dir, capture_output=True)
+    print(f"  [✓] Master Cartoon Dialogue Track: {master_dialogue}", flush=True)
+    return master_dialogue, scene_audios
+
+def build_dissolve_sequence_with_start_end_fades(clip_paths, output_dir, final_slot_offsets=None):
+    """
+    Assemble scene clips using xfade cross dissolves, fade-in from black,
+    and fade-out to black.
+    """
+    print("\n[3/4] ✨ Normalizing to Strict 9:16 (720x1280) & Applying In/Out Dissolves...", flush=True)
+    num_scenes = len(clip_paths)
+    transition_dur = 0.50
     
     # Calculate accumulated xfade offsets
-    offsets = []
-    accum = 0.0
-    for i in range(num_scenes - 1):
-        accum += durations[i] - (transition_dur if i > 0 else transition_dur)
-        offsets.append(max(0.1, accum))
-        
-    final_video_duration = sum(durations) - (num_scenes - 1) * transition_dur
-    print(f"Assembling {num_scenes} scenes. Final duration: {final_video_duration:.2f}s", flush=True)
-    
-    # 2. Stage 1: Render Video Transitions
-    video_xfade_path = str(temp_dir / "temp_xfade_video.mp4")
-    inputs = []
-    for c in scene_clips:
-        inputs.extend(["-i", str(c)])
-        
-    filter_parts = []
-    if num_scenes == 1:
-        filter_parts.append(f"[0:v]fade=t=in:st=0:d=0.75,fade=t=out:st={final_video_duration - 1.0:.2f}:d=1.0[vout]")
+    if final_slot_offsets is None:
+        offsets = []
+        accum = 0.0
+        for i in range(num_scenes - 1):
+            accum += 9.54
+            offsets.append(accum)
     else:
-        filter_parts.append(f"[0:v][1:v]xfade=transition=fade:duration={transition_dur}:offset={offsets[0]:.2f}[v1_xf]")
-        last_v = "v1_xf"
-        for i in range(2, num_scenes):
-            next_v = f"v{i}_xf"
-            filter_parts.append(f"[{last_v}][{i}:v]xfade=transition=fade:duration={transition_dur}:offset={offsets[i-1]:.2f}[{next_v}]")
-            last_v = next_v
-        filter_parts.append(f"[{last_v}]fade=t=in:st=0:d=0.75,fade=t=out:st={final_video_duration - 1.0:.2f}:d=1.0[vout]")
+        offsets = final_slot_offsets
 
-    cmd_video = [
+    filter_complex_parts = []
+    if num_scenes == 1:
+        total_dur = 10.0
+        filter_complex_parts.append(f"[0:v]fade=t=in:st=0:d=0.75,fade=t=out:st={total_dur - 1.0:.2f}:d=1.0[vout]")
+    else:
+        filter_complex_parts.append(f"[0:v][1:v]xfade=transition=fade:duration={transition_dur}:offset={offsets[0]:.2f}[v01]")
+        last_v = "v01"
+        for i in range(2, num_scenes):
+            next_v = f"v0{i}"
+            filter_complex_parts.append(f"[{last_v}][{i}:v]xfade=transition=fade:duration={transition_dur}:offset={offsets[i-1]:.2f}[{next_v}]")
+            last_v = next_v
+            
+        total_dur = offsets[-1] + 10.04 - transition_dur
+        filter_complex_parts.append(f"[{last_v}]fade=t=in:st=0:d=0.75,fade=t=out:st={total_dur - 1.0:.2f}:d=1.0[vout]")
+
+    xfade_output = os.path.join(output_dir, "master_dissolve_video.mp4")
+    inputs = []
+    for c in clip_paths:
+        inputs.extend(["-i", c])
+        
+    cmd = [
         FFMPEG, "-y",
         *inputs,
-        "-filter_complex", ";".join(filter_parts),
+        "-filter_complex", ";".join(filter_complex_parts),
         "-map", "[vout]",
         "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "16",
+        "-preset", "veryfast",
+        "-crf", "17",
         "-pix_fmt", "yuv420p",
-        video_xfade_path
+        xfade_output
     ]
-    p_vid = subprocess.run(cmd_video, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    if p_vid.returncode != 0:
-        print(f"Video xfade failed:\n{p_vid.stderr}", file=sys.stderr)
-        raise RuntimeError(f"Video xfade failed: {p_vid.stderr}")
+    print("  [+] Executing xfade + intro/outro dissolves...", flush=True)
+    res = subprocess.run(cmd, capture_output=True, text=True, errors="replace")
+    if res.returncode != 0:
+        print(f"[-] xfade failed:\n{res.stderr}", flush=True)
+        raise RuntimeError(f"xfade failure: {res.stderr}")
+        
+    print(f"  [✓] Dissolve Video Ready: {xfade_output}", flush=True)
+    return xfade_output, total_dur
 
-    # 3. Stage 2: Multiplex final master with direct audio stream concat, BGM, Bell SFX, and 60 FPS
-    bell_start_ms = int(max(1.0, final_video_duration - 12.0) * 1000)
+def produce_final_master_v3(video_path, dialogue_path, bgm_path, bell_path, output_path, total_dur, bell_delay_s=47.70, fps=60):
+    """
+    Multiplex Master Reel with Boosted BGM, Real School Bell SFX, and progressive 60 FPS output.
+    """
+    print("\n[4/4] 🚀 Multiplexing Master Reel with Boosted BGM, Real School Bell SFX, and 60 FPS...", flush=True)
+    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     
-    # Video input: 0
-    # Dialogue inputs: 1 .. num_scenes
-    # BGM input: num_scenes + 1
-    # Bell input: num_scenes + 2
-    diag_inputs = "".join(f"[{i+1}:a]" for i in range(num_scenes))
-    bgm_idx = num_scenes + 1
-    bell_idx = num_scenes + 2
+    bell_delay_ms = int(bell_delay_s * 1000)
+    audio_fade_out_st = max(1.0, total_dur - 1.25)
     
-    full_filter = (
-        f"[0:v]fps=fps={fps}[v60];"
-        f"{diag_inputs}concat=n={num_scenes}:v=0:a=1[a_diag_raw];"
-        f"[a_diag_raw]volume=1.05,aformat=channel_layouts=stereo[a_diag];"
-        f"[{bgm_idx}:a]volume=0.35,aformat=channel_layouts=stereo[a_bgm];"
-        f"[{bell_idx}:a]adelay={bell_start_ms}|{bell_start_ms},volume=0.90,aformat=channel_layouts=stereo[a_bell];"
+    audio_filter = (
+        f"[1:a]volume=1.05,aformat=channel_layouts=stereo[a_diag];"
+        f"[2:a]volume=0.35,aformat=channel_layouts=stereo[a_bgm];"
+        f"[3:a]adelay={bell_delay_ms}|{bell_delay_ms},volume=0.90,aformat=channel_layouts=stereo[a_bell];"
         f"[a_diag][a_bgm][a_bell]amix=inputs=3:duration=first:dropout_transition=2,"
-        f"afade=t=in:st=0:d=0.3,afade=t=out:st={final_video_duration - 1.2:.2f}:d=1.2[a_mix]"
+        f"afade=t=in:st=0:d=0.3,afade=t=out:st={audio_fade_out_st:.2f}:d=1.2[a_mix]"
     )
     
-    cmd_master = [
+    video_filter = f"[0:v]fps=fps={fps}[v60]"
+    full_filter = f"{video_filter};{audio_filter}"
+    
+    cmd = [
         FFMPEG, "-y",
-        "-i", video_xfade_path
-    ]
-    for d in dialogue_tracks:
-        cmd_master.extend(["-i", str(d)])
-    cmd_master.extend([
-        "-i", str(bgm_wav),
-        "-i", str(bell_wav),
+        "-i", video_path,
+        "-i", dialogue_path,
+        "-i", bgm_path,
+        "-i", bell_path,
         "-filter_complex", full_filter,
         "-map", "[v60]",
         "-map", "[a_mix]",
         "-c:v", "libx264",
-        "-preset", "fast",
+        "-preset", "medium",
         "-crf", "16",
         "-pix_fmt", "yuv420p",
         "-c:a", "aac",
-        "-b:a", "216k",
+        "-b:a", "256k",
         "-ar", "44100",
-        "-t", f"{final_video_duration:.2f}",
-        output_master_mp4
-    ])
-    
-    print("Running final 60 FPS master assembly with audio mixing...", flush=True)
-    p_final = subprocess.run(cmd_master, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    if p_final.returncode != 0:
-        print(f"Master multiplexing failed:\n{p_final.stderr}", file=sys.stderr)
-        raise RuntimeError(f"Master multiplexing failed: {p_final.stderr}")
+        "-t", f"{total_dur:.2f}",
+        output_path
+    ]
+    print(f"  [+] Final encoding to 60 FPS MP4 ({output_path})...", flush=True)
+    res = subprocess.run(cmd, capture_output=True, text=True, errors="replace")
+    if res.returncode != 0:
+        print(f"[-] Multiplexing error:\n{res.stderr}", flush=True)
+        raise RuntimeError(f"Final multiplexing failure: {res.stderr}")
         
-    print(f"Master assembly complete: {output_master_mp4}", flush=True)
-    return output_master_mp4
+    print(f"\n🎉 MASTER 60 FPS REEL READY:\n{output_path}", flush=True)
+    return output_path
 
 async def main_async():
-    parser = argparse.ArgumentParser(description="Render Pixar 3D Animated Video Reel")
+    parser = argparse.ArgumentParser(description="Render Pixar 3D Animated Video Reel (V3 Engine)")
     parser.add_argument("--config", required=True, help="Path to JSON configuration file")
     args = parser.parse_args()
     
@@ -433,53 +530,71 @@ async def main_async():
     temp_dir = Path(config.get("temp_dir", "temp/pixar_render"))
     temp_dir.mkdir(parents=True, exist_ok=True)
     
+    project_root = Path(__file__).resolve().parent.parent.parent
     width, height = options.get("resolution", [720, 1280])
     fps = options.get("fps", 60)
     
-    print(f"Starting Pixar 3D Animation Render. Scenes: {len(storyboard)}")
+    print("=" * 75)
+    print("🌟 PIXAR 3D ANIMATED REEL GENERATION (V3 ENGINE) 🌟")
+    print(f"Scenes: {len(storyboard)} | Target: {width}x{height} @ {fps} FPS")
+    print("=" * 75, flush=True)
     
-    # 1. Generate SFX & BGM
-    bell_wav = temp_dir / "school_bell.wav"
-    bgm_wav = temp_dir / "pixar_bgm.wav"
-    create_physical_school_bell(str(bell_wav), duration=4.0)
-    create_pixar_bgm(str(bgm_wav), duration=220.0)  # Support up to 3+ mins
+    # 1. Generate SFX & BGM Assets
+    audio_dir = str(temp_dir / "audio_tracks")
+    clips_dir = str(temp_dir / "scene_clips")
+    os.makedirs(audio_dir, exist_ok=True)
+    os.makedirs(clips_dir, exist_ok=True)
     
-    # 2. Process each scene
-    scene_clips = []
-    dialogue_tracks = []
+    bell_wav = os.path.join(audio_dir, "real_school_bell.wav")
+    bgm_wav = os.path.join(audio_dir, "cheerful_cartoon_bgm.wav")
+    
+    create_physical_school_bell(bell_wav, duration=4.0)
+    create_cheerful_cartoon_bgm(bgm_wav, total_duration=240.0)
+    
+    # 2. Stage 1: Generate dialogue tracks with apad alignment
+    master_dialogue, padded_scene_audios = await create_cartoon_audio_tracks(storyboard, audio_dir)
+    
+    # 3. Stage 2: Render scene clips from verified 3D assets
+    print("\n[2/4] 🎬 Rendering Standardized 9:16 Scene Clips...", flush=True)
+    clip_paths = []
+    num_scenes = len(storyboard)
     
     for idx, scene in enumerate(storyboard):
-        s_idx = idx + 1
-        character = scene.get("character", "Narrator")
-        title = scene.get("title", f"Scene {s_idx}")
-        dialogue = scene.get("dialogue", "")
-        voice = scene.get("voice", "hi-IN-MadhurNeural")
-        pitch = scene.get("pitch", "+18Hz")
-        rate = scene.get("rate", "+8%")
-        target_dur = float(scene.get("target_duration", 9.5))
+        clip_file = os.path.join(clips_dir, f"scene_{idx}.mp4")
+        slot_dur = 10.04 if idx == num_scenes - 1 else 9.54
         
-        # Audio path
-        audio_mp3 = temp_dir / f"dialogue_scene_{s_idx}.mp3"
-        await generate_single_tts(dialogue, voice, pitch, rate, str(audio_mp3))
-        
-        actual_audio_dur = get_media_duration(str(audio_mp3))
-        dur = max(target_dur, actual_audio_dur + 1.2)
-        
-        # Frame path
-        frame_png = temp_dir / f"frame_scene_{s_idx}.png"
-        render_pixar_frame(scene.get("visual_prompt", ""), character, title, width, height, str(frame_png))
-        
-        # Scene video clip
-        clip_mp4 = temp_dir / f"clip_scene_{s_idx}.mp4"
-        render_scene_clip(str(frame_png), str(audio_mp3), str(clip_mp4), dur, fps=fps, width=width, height=height)
-        
-        scene_clips.append(str(clip_mp4))
-        dialogue_tracks.append(str(audio_mp3))
-        print(f"Scene {s_idx}/{len(storyboard)} rendered: {character} ({dur:.2f}s)")
-        
-    # 3. Assemble master video with dissolve transitions
-    assemble_master_with_dissolves(scene_clips, dialogue_tracks, str(bgm_wav), str(bell_wav), output_path, fps=fps)
-    print(f"SUCCESS: Final video created at {output_path}")
+        # Find 3D reference image
+        ref_image = resolve_character_image(scene, project_root)
+        if not ref_image or not os.path.exists(ref_image):
+            # Render visual frame
+            frame_png = os.path.join(clips_dir, f"frame_{idx}.png")
+            render_fallback_frame(scene.get("character", "Character"), scene.get("title", f"Scene {idx+1}"), width, height, frame_png)
+            ref_image = frame_png
+            
+        render_scene_clip_exact(ref_image, clip_file, slot_dur, fps=fps, width=width, height=height)
+        clip_paths.append(clip_file)
+        print(f"  [✓] Scene {idx+1}/{num_scenes} clip rendered: {clip_file} ({slot_dur}s)", flush=True)
+
+    # 4. Stage 3: Assemble dissolve sequence with start & end fades
+    offsets = [9.54 * (i + 1) for i in range(num_scenes - 1)]
+    dissolve_video, total_dur = build_dissolve_sequence_with_start_end_fades(clip_paths, str(temp_dir), offsets)
+    
+    # 5. Stage 4: Produce final 60 FPS master
+    bell_delay = offsets[-1] if len(offsets) > 0 else 1.0
+    final_output = produce_final_master_v3(
+        dissolve_video,
+        master_dialogue,
+        bgm_wav,
+        bell_wav,
+        output_path,
+        total_dur,
+        bell_delay_s=bell_delay,
+        fps=fps
+    )
+    
+    print("\n✅ PIXAR 3D ANIMATION PIPELINE COMPLETE!")
+    print(f"Output: {final_output}")
+    return final_output
 
 if __name__ == "__main__":
     asyncio.run(main_async())

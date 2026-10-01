@@ -116,34 +116,64 @@ class PixarVideoEngine {
     await fs.mkdir(assetsDir, { recursive: true });
 
     const thumbnailPath = path.join(assetsDir, `pixar_thumb_${timestamp}.jpg`);
-    const firstFramePng = path.join(resolvedTempDir, 'frame_scene_1.png');
-    if (require('fs').existsSync(firstFramePng)) {
-      await fs.copyFile(firstFramePng, thumbnailPath);
+    const firstFramePng = path.join(resolvedTempDir, 'scene_clips', 'frame_0.png');
+    const firstCharImg = path.join(__dirname, '..', '..', 'assets', 'pixar-characters', 'pencil_hero.jpg');
+    
+    if (require('fs').existsSync(firstCharImg)) {
+      await fs.copyFile(firstCharImg, thumbnailPath).catch(() => {});
+    } else if (require('fs').existsSync(firstFramePng)) {
+      await fs.copyFile(firstFramePng, thumbnailPath).catch(() => {});
     }
 
     const enrichedStoryboard = [];
     for (let i = 0; i < storyboardPackage.storyboard.length; i++) {
       const scene = { ...storyboardPackage.storyboard[i] };
       const sNum = i + 1;
-      const srcFrame = path.join(resolvedTempDir, `frame_scene_${sNum}.png`);
-      const srcClip = path.join(resolvedTempDir, `clip_scene_${sNum}.mp4`);
-      const srcAudio = path.join(resolvedTempDir, `dialogue_scene_${sNum}.mp3`);
+      const sIdx = i;
       
+      const candidateFrames = [
+        path.join(resolvedTempDir, 'scene_clips', `frame_${sIdx}.png`),
+        path.join(resolvedTempDir, `frame_scene_${sNum}.png`),
+        scene.image_path ? path.resolve(__dirname, '..', '..', scene.image_path) : null
+      ].filter(Boolean);
+
+      const candidateClips = [
+        path.join(resolvedTempDir, 'scene_clips', `scene_${sIdx}.mp4`),
+        path.join(resolvedTempDir, `clip_scene_${sNum}.mp4`)
+      ];
+
+      const candidateAudios = [
+        path.join(resolvedTempDir, 'audio_tracks', `scene_${sIdx}_padded.mp3`),
+        path.join(resolvedTempDir, 'audio_tracks', `scene_${sIdx}_raw.mp3`),
+        path.join(resolvedTempDir, `dialogue_scene_${sNum}.mp3`)
+      ];
+
       const destFrame = path.join(assetsDir, `pixar_${timestamp}_scene_${sNum}.png`);
       const destClip = path.join(assetsDir, `pixar_${timestamp}_scene_${sNum}.mp4`);
       const destAudio = path.join(assetsDir, `pixar_${timestamp}_scene_${sNum}.mp3`);
 
-      if (require('fs').existsSync(srcFrame)) {
-        await fs.copyFile(srcFrame, destFrame).catch(() => {});
-        scene.visual_path = destFrame;
+      for (const cf of candidateFrames) {
+        if (require('fs').existsSync(cf)) {
+          await fs.copyFile(cf, destFrame).catch(() => {});
+          scene.visual_path = destFrame;
+          break;
+        }
       }
-      if (require('fs').existsSync(srcClip)) {
-        await fs.copyFile(srcClip, destClip).catch(() => {});
-        scene.clip_path = destClip;
+
+      for (const cc of candidateClips) {
+        if (require('fs').existsSync(cc)) {
+          await fs.copyFile(cc, destClip).catch(() => {});
+          scene.clip_path = destClip;
+          break;
+        }
       }
-      if (require('fs').existsSync(srcAudio)) {
-        await fs.copyFile(srcAudio, destAudio).catch(() => {});
-        scene.audio_path = destAudio;
+
+      for (const ca of candidateAudios) {
+        if (require('fs').existsSync(ca)) {
+          await fs.copyFile(ca, destAudio).catch(() => {});
+          scene.audio_path = destAudio;
+          break;
+        }
       }
 
       enrichedStoryboard.push(scene);

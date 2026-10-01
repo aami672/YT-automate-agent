@@ -34,48 +34,72 @@ const STORY_PRESETS = {
         title: 'Pencil Hero Wakes Up',
         character: 'Pencil Hero',
         voice_type: 'hero',
-        dialogue: 'Arey dosto! Dekho subah ho gayi, school bag khulne wala hai! Aaj hum sabko geometry box aur notebook me rock karna hai!',
-        visual_prompt: 'Pixar 3D style upright yellow wooden pencil character with pink eraser top, big expressive cartoon eyes and happy smile, inside open school backpack, cinematic volumetric morning sunlight, vibrant colors, 9:16 vertical composition.'
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '+18Hz',
+        rate: '+8%',
+        dialogue: 'सोमवार की सुबह हो गई दोस्तों! पेंसिल भाई एकदम तैयार हैं, आज तो क्लास में पूरे दस में से दस मार्क्स लेकर ही मानेंगे!',
+        image_path: 'assets/pixar-characters/pencil_hero.jpg',
+        visual_prompt: 'A high-quality 3D Pixar Disney animation scene. A cheerful yellow wooden pencil character with big expressive cartoon eyes and a warm smile on the pencil body standing proudly on a student notebook on a wooden classroom desk. Bright morning sunlight, soft classroom background. Important: NO tail, NO animal legs, pure classic stationery pencil character, steady locked camera, zero jitter, perfectly proportioned vertical 9:16 framing.'
       },
       {
         scene_index: 2,
         title: 'Panicky Eraser Joins',
         character: 'Panicky Eraser',
         voice_type: 'squeaky',
-        dialogue: 'Lekin Maths test ka kya?! Vo difficult algebra sums... agar galti hui toh mujhe apna sir ghis ghis ke mitana padega! Meri shaving kamzor ho jayegi!',
-        visual_prompt: 'Pixar 3D style cute pink and blue wedge eraser with surprised cartoon eyes and open mouth, sitting nervously on notebook, soft shadow, clean studio lighting, 9:16 vertical composition.'
+        voice: 'hi-IN-SwaraNeural',
+        pitch: '+32Hz',
+        rate: '+5%',
+        dialogue: 'अरे पेंसिल भाई धीरे लिखो! तुम गलतियां करोगे और मुझे घिसना पड़ेगा, मेरी तो कमर टूट जाएगी!',
+        image_path: 'assets/pixar-characters/eraser_panicking.jpg',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. A cute chunky pink eraser character with comical worried wide eyes and hands on its cheeks, trembling playfully on the wooden desk beside an open notebook. Classroom setting with warm morning light, steady camera, rich tactile rubber textures, perfectly proportioned vertical 9:16 framing.'
       },
       {
         scene_index: 3,
         title: 'Sharpener Power Up',
         character: 'Sharpener Tech',
         voice_type: 'fast_tech',
-        dialogue: 'Tension mat lo Eraser bhai! Mera high-speed blade ready hai! Pencil ko 2 second me supersonic laser tip bana dunga!',
-        visual_prompt: 'Pixar 3D style metallic sky-blue pencil sharpener with shiny steel blade, wearing glowing futuristic goggles with clever grin, vibrant 9:16 vertical composition.'
+        voice: 'hi-IN-SwaraNeural',
+        pitch: '+18Hz',
+        rate: '+10%',
+        dialogue: 'चिंता मत करो इरेज़र बाबू! जब तक शार्पनर यहाँ है, पेंसिल की नोक रॉकेट की तरह शार्प रहेगी, लिखाई एकदम मक्खन!',
+        image_path: 'assets/pixar-characters/sharpener_tech.jpg',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. A cute friendly blue plastic pencil sharpener character with big expressive cartoon eyes standing proudly upright on an open notebook on a wooden school desk. Sharp blade visible, bright morning sunlight, locked steady camera, perfectly proportioned vertical 9:16 framing, zero distortion, zero stretching.'
       },
       {
         scene_index: 4,
         title: 'Ruler Superhero Steps In',
         character: 'Ruler Superhero',
         voice_type: 'deep_hero',
-        dialogue: 'Darne ki koi baat nahi! Mai 30 centimeter ka Ruler hu! Mera line hamesha 100 percent straight hota hai!',
-        visual_prompt: 'Pixar 3D style wooden ruler standing tall like a superhero with mini red cape and measurement markings, confident heroic posture, dynamic cinematic rim lighting, 9:16 vertical composition.'
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '-22Hz',
+        rate: '-8%',
+        dialogue: 'शांत हो जाओ सब! जब तक स्केल साहब यहाँ हैं, एक भी लाइन टेढ़ी नहीं होगी, हर डायग्राम बिल्कुल सीधा और परफेक्ट!',
+        image_path: 'assets/pixar-characters/ruler_superhero.jpg',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. A tall sleek clear plastic ruler character standing proudly like a superhero with hands on hips on an open math notebook on the wooden classroom desk. Bright morning sunlight, clear transparent reflections, proud confident expression, locked steady framing, pure 3D character, perfectly proportioned 9:16 vertical.'
       },
       {
         scene_index: 5,
         title: 'Squad Action Formation',
         character: 'Backpack Squad',
         voice_type: 'action',
-        dialogue: 'Backpack Squad... Ready for Action! Pencil sharp, Ruler straight, Eraser alert! Aaj top score hamara hi hoga!',
-        visual_prompt: 'Pixar 3D style full backpack squad group standing together heroically on school desk, pencil, eraser, sharpener, and ruler, vibrant colors, cinematic depth of field, 9:16 vertical composition.'
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '+14Hz',
+        rate: '+6%',
+        dialogue: 'देखा इसे कहते हैं बैकपैक स्क्वाड! लिखना, मिटाना, शार्प करना और सीधी लाइन - सब मिलकर करेंगे टॉप!',
+        image_path: 'assets/pixar-characters/squad_vertical.jpg',
+        visual_prompt: 'A high-quality 3D Pixar Disney animation scene. The entire stationery squad - yellow pencil, pink eraser, blue sharpener, and clear ruler grouped closely in the center of an open notebook on the wooden school desk. Warm morning sunlight, chalkboard in background, locked steady camera, perfectly proportioned vertical 9:16 framing, zero stretching, no humans.'
       },
       {
         scene_index: 6,
         title: 'School Bell Outro & CTA',
         character: 'Hero Outro',
         voice_type: 'outro',
-        dialogue: 'Oye school bell baj gayi! Chalo fatatafat channel ko Like aur Subscribe karo, aur apna favorite stationery comment karo!',
-        visual_prompt: 'Pixar 3D style golden school bell ringing with soundwave sparks, backpack squad waving cheerfully to the camera, golden confetti, vibrant 9:16 vertical composition.'
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '+20Hz',
+        rate: '+8%',
+        dialogue: 'स्कूल की घंटी बज चुकी है दोस्तों! आपका सबसे पसंदीदा स्टेशनरी साथी कौन सा है? कमेंट में बताओ और सब्सक्राइब जरूर करो!',
+        image_path: 'assets/pixar-characters/outro_vertical.jpg',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. Celebratory finale of the cute stationery squad (yellow pencil, pink eraser, blue sharpener, clear ruler) waving happily together with joyful big smiles on the wooden school desk next to a colorful pencil box. Festive morning sunlight, sparkling confetti bokeh, locked steady camera, perfectly proportioned vertical 9:16 framing, zero stretching, no humans.'
       }
     ]
   },
@@ -208,9 +232,10 @@ function expandStoryPreset(presetKey, targetDurationKey = '1min', language = 'hi
       tags: preset.tags,
       storyboard: baseScenes.map(s => ({
         ...s,
-        voice: voices[s.voice_type]?.voice || voices.hero.voice,
-        pitch: voices[s.voice_type]?.pitch || '+18Hz',
-        rate: voices[s.voice_type]?.rate || '+8%',
+        voice: s.voice || voices[s.voice_type]?.voice || voices.hero.voice,
+        pitch: s.pitch || voices[s.voice_type]?.pitch || '+18Hz',
+        rate: s.rate || voices[s.voice_type]?.rate || '+8%',
+        image_path: s.image_path || '',
         target_duration: 9.5
       }))
     };
@@ -238,9 +263,10 @@ function expandStoryPreset(presetKey, targetDurationKey = '1min', language = 'hi
       title: i === numScenes - 1 ? 'Epic Grand Finale & Outro' : title,
       character: base.character,
       voice_type: i === numScenes - 1 ? 'outro' : base.voice_type,
-      voice: voices[base.voice_type]?.voice || voices.hero.voice,
-      pitch: voices[base.voice_type]?.pitch || '+18Hz',
-      rate: voices[base.voice_type]?.rate || '+8%',
+      voice: base.voice || voices[base.voice_type]?.voice || voices.hero.voice,
+      pitch: base.pitch || voices[base.voice_type]?.pitch || '+18Hz',
+      rate: base.rate || voices[base.voice_type]?.rate || '+8%',
+      image_path: base.image_path || '',
       dialogue: i === numScenes - 1 ? 'Dosto video ko Like aur Subscribe karo aur agle episode ke liye comment karo!' : dialogue,
       visual_prompt: base.visual_prompt,
       target_duration: 9.5
