@@ -9,8 +9,8 @@ const VIDEO_EXTENSIONS = new Set(['.mp4']);
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp']);
 
 function textFromSection(section = {}) {
-  if (typeof section.content === 'string') return /\[[^\]]*\]/.test(section.content) ? '' : section.content;
-  if (Array.isArray(section.content)) return section.content.filter(item => typeof item === 'string' && !/\[[^\]]*\]/.test(item)).join(' ');
+  if (typeof section.content === 'string') return section.content.replace(/\[([^\]]+)\]/g, '$1: ').trim();
+  if (Array.isArray(section.content)) return section.content.filter(item => typeof item === 'string').map(s => s.replace(/\[([^\]]+)\]/g, '$1: ').trim()).join(' ');
   if (Array.isArray(section.items)) return section.items.map(item => `${item.title || ''}. ${item.description || ''}`).join(' ');
   if (Array.isArray(section.steps)) return section.steps.map(item => `${item.title || ''}. ${item.description || ''}`).join(' ');
   return '';

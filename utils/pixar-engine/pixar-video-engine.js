@@ -111,14 +111,45 @@ class PixarVideoEngine {
       });
     });
 
-    // 4. Generate Thumbnail & SRT Captions
-    const thumbnailPath = path.join(__dirname, '..', '..', 'data', 'assets', `pixar_thumb_${timestamp}.jpg`);
+    // 4. Persist Scene Assets, Thumbnail & SRT Captions
+    const assetsDir = path.join(__dirname, '..', '..', 'data', 'assets');
+    await fs.mkdir(assetsDir, { recursive: true });
+
+    const thumbnailPath = path.join(assetsDir, `pixar_thumb_${timestamp}.jpg`);
     const firstFramePng = path.join(resolvedTempDir, 'frame_scene_1.png');
     if (require('fs').existsSync(firstFramePng)) {
       await fs.copyFile(firstFramePng, thumbnailPath);
     }
 
-    const srtContent = this.generateSRT(storyboardPackage.storyboard);
+    const enrichedStoryboard = [];
+    for (let i = 0; i < storyboardPackage.storyboard.length; i++) {
+      const scene = { ...storyboardPackage.storyboard[i] };
+      const sNum = i + 1;
+      const srcFrame = path.join(resolvedTempDir, `frame_scene_${sNum}.png`);
+      const srcClip = path.join(resolvedTempDir, `clip_scene_${sNum}.mp4`);
+      const srcAudio = path.join(resolvedTempDir, `dialogue_scene_${sNum}.mp3`);
+      
+      const destFrame = path.join(assetsDir, `pixar_${timestamp}_scene_${sNum}.png`);
+      const destClip = path.join(assetsDir, `pixar_${timestamp}_scene_${sNum}.mp4`);
+      const destAudio = path.join(assetsDir, `pixar_${timestamp}_scene_${sNum}.mp3`);
+
+      if (require('fs').existsSync(srcFrame)) {
+        await fs.copyFile(srcFrame, destFrame).catch(() => {});
+        scene.visual_path = destFrame;
+      }
+      if (require('fs').existsSync(srcClip)) {
+        await fs.copyFile(srcClip, destClip).catch(() => {});
+        scene.clip_path = destClip;
+      }
+      if (require('fs').existsSync(srcAudio)) {
+        await fs.copyFile(srcAudio, destAudio).catch(() => {});
+        scene.audio_path = destAudio;
+      }
+
+      enrichedStoryboard.push(scene);
+    }
+
+    const srtContent = this.generateSRT(enrichedStoryboard);
     const captionsPath = path.join(__dirname, '..', '..', 'data', 'captions', `pixar_captions_${timestamp}.srt`);
     await fs.mkdir(path.dirname(captionsPath), { recursive: true });
     await fs.writeFile(captionsPath, srtContent, 'utf8');
@@ -133,11 +164,11 @@ class PixarVideoEngine {
       title: storyboardPackage.title,
       genre: storyboardPackage.genre,
       tags: storyboardPackage.tags,
-      storyboard: storyboardPackage.storyboard,
+      storyboard: enrichedStoryboard,
       fps: 60,
       resolution: '720x1280',
       durationPreset: durationPreset,
-      duration: storyboardPackage.storyboard.length * 9.5
+      duration: enrichedStoryboard.length * 9.5
     };
   }
 
