@@ -641,6 +641,7 @@ class YouTubeAutomationAgent {
       try {
         const mode = req.body?.mode || 'finished';
         if (mode === 'all') {
+          this.activeJobs.clear();
           await this.db.executeQuery('DELETE FROM media_generation_tasks');
           await this.db.executeQuery('DELETE FROM generation_checkpoints');
           await this.db.executeQuery('DELETE FROM generation_jobs');
@@ -1487,7 +1488,7 @@ class YouTubeAutomationAgent {
     if (['scheduler', 'autonomous_operator'].includes(input.source)) {
       await this.readiness?.assertReady('Automated generation');
     }
-    const maxConcurrent = Math.max(1, parseInt(process.env.MAX_CONCURRENT_JOBS || '1', 10));
+    const maxConcurrent = Math.max(1, parseInt(process.env.MAX_CONCURRENT_JOBS || '4', 10));
     if (this.activeJobs.size >= maxConcurrent) {
       const error = new Error(`Generation is busy (${this.activeJobs.size}/${maxConcurrent} active jobs). Try again when the current job finishes.`);
       error.status = 429;
@@ -1514,7 +1515,7 @@ class YouTubeAutomationAgent {
   }
 
   async startPixarGenerationJob(input = {}) {
-    const maxConcurrent = Math.max(1, parseInt(process.env.MAX_CONCURRENT_JOBS || '2', 10));
+    const maxConcurrent = Math.max(1, parseInt(process.env.MAX_CONCURRENT_JOBS || '4', 10));
     if (this.activeJobs.size >= maxConcurrent) {
       const error = new Error(`Generation is busy (${this.activeJobs.size}/${maxConcurrent} active jobs). Try again when the current job finishes.`);
       error.status = 429;

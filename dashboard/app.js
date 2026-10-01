@@ -116,7 +116,8 @@ let activeJobStart = null;
 function renderOngoingProcess(jobs = []) {
   const banner = $('#ongoing-process-banner');
   if (!banner) return;
-  const activeJob = jobs.find(j => ['running', 'queued'].includes(j.status));
+  const activeJob = jobs.find(j => ['running', 'queued'].includes(j.status)) ||
+    (ui.state?.system?.activeJobs > 0 ? { id: 'active-system-job', topic: '3D Pixar Video Generation...', status: 'running', progress: 30 } : null);
 
   if (!activeJob) {
     if (banner.dataset.lastActiveJob && !banner.classList.contains('hidden')) {
@@ -220,11 +221,12 @@ function renderOngoingProcess(jobs = []) {
   if (!ui.pollInterval) {
     ui.pollInterval = setInterval(async () => {
       await refreshDashboard(true);
-      if (!ui.state?.jobs?.some(j => ['running', 'queued'].includes(j.status))) {
+      const isGenerating = ui.state?.jobs?.some(j => ['running', 'queued'].includes(j.status)) || (ui.state?.system?.activeJobs > 0);
+      if (!isGenerating) {
         clearInterval(ui.pollInterval);
         ui.pollInterval = null;
       }
-    }, 3000);
+    }, 2500);
   }
 }
 
@@ -2027,6 +2029,7 @@ $('#generate-form').addEventListener('submit', async event => {
   const values = Object.fromEntries(new FormData(form));
 
   try {
+    $('#generate-dialog').close();
     if (currentGeneratorMode === 'pixar') {
       const title = $('#pixar-title-input')?.value?.trim() || values.pixarTitle?.trim() || null;
       const scriptText = $('#pixar-script-input')?.value?.trim() || values.pixarScript || '';
@@ -2042,11 +2045,13 @@ $('#generate-form').addEventListener('submit', async event => {
     } else {
       await mutate('/generate', 'POST', { ...values, topic: values.topic?.trim() || null }, 'Generation job started.');
     }
-    $('#generate-dialog').close();
     form.reset();
-    switchView('pipeline');
-    refreshDashboard(false);
-  } catch (_error) { /* toast already shown */ }
+    switchView('overview');
+  } catch (_error) {
+    /* toast already shown */
+  } finally {
+    await refreshDashboard(false);
+  }
 });
 
 $('#idea-form').addEventListener('submit', async event => {
