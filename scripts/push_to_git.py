@@ -35,25 +35,37 @@ except Exception as e:
     print(f"Commit note (may already be committed): {e}")
 
 # 4. Configure remote origin
+token = os.environ.get("GITHUB_TOKEN") or (sys.argv[1] if len(sys.argv) > 1 else None)
+if token:
+    # Strip any https:// prefix if token was passed as full URL
+    if "github.com" in token:
+        target_remote = token
+    else:
+        target_remote = f"https://{token}@github.com/aami672/YT-automate-agent.git"
+else:
+    target_remote = REMOTE_URL
+
 try:
-    porcelain.remote_add(str(REPO_DIR), "origin", REMOTE_URL)
-    print(f"Remote origin set to: {REMOTE_URL}")
+    porcelain.remote_add(str(REPO_DIR), "origin", target_remote)
+    print(f"Remote origin configured.")
 except Exception as e:
-    # Update remote URL if already exists
     config = repo.get_config()
-    config.set(("remote", "origin"), "url", REMOTE_URL.encode("utf-8"))
+    config.set(("remote", "origin"), "url", target_remote.encode("utf-8"))
     config.write_to_path()
-    print(f"Updated remote origin to: {REMOTE_URL}")
+    print(f"Updated remote origin.")
 
 # 5. Push to main branch
-print(f"Pushing to {REMOTE_URL} (branch: main)...")
+print("Pushing to remote repository (branch: main)...")
 try:
     porcelain.push(str(REPO_DIR), "origin", "refs/heads/master:refs/heads/main", force=True)
     print("Push successful to refs/heads/main!")
 except Exception as e1:
-    print(f"Trying direct ref push: {e1}")
     try:
         porcelain.push(str(REPO_DIR), "origin", "refs/heads/main:refs/heads/main", force=True)
         print("Push successful to main!")
     except Exception as e2:
         print(f"Push result: {e2}")
+        if "No valid credentials" in str(e2):
+            print("\n[Authentication Required]: Please provide your GitHub Personal Access Token (PAT).")
+            print("Usage: python scripts/push_to_git.py <YOUR_GITHUB_TOKEN>")
+
