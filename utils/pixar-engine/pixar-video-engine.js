@@ -8,17 +8,20 @@ const {
   expandStoryPreset
 } = require('./storyboard-templates');
 
+const { AITextService } = require('../ai-text-service');
+
 class PixarVideoEngine {
   constructor(options = {}) {
     this.logger = new Logger('PixarVideoEngine');
     this.options = options;
+    const { CredentialManager } = require('../credential-manager');
+    this.credentials = options.credentials || new CredentialManager().credentials || {};
+    
     if (options.aiVideoGenerator) {
       this.aiVideoGenerator = options.aiVideoGenerator;
     } else {
       const { AIVideoGenerator } = require('../ai-video-generator');
-      const { CredentialManager } = require('../credential-manager');
-      const creds = new CredentialManager().credentials || {};
-      this.aiVideoGenerator = new AIVideoGenerator(creds);
+      this.aiVideoGenerator = new AIVideoGenerator(this.credentials);
     }
   }
 
@@ -34,6 +37,94 @@ class PixarVideoEngine {
 
     // 3. Fallback to system python
     return 'python';
+  }
+
+  async generateDynamicGeminiScript(durationPreset = '1min', language = 'hindi', customTopic = null) {
+    try {
+      this.logger.info('Invoking Gemini to write a fresh 3D Pixar screenplay (non-living things coming to life)...');
+      const numScenes = durationPreset === '3min' ? 18 : durationPreset === '2min' ? 12 : 6;
+      
+      const themeIdeas = [
+        'Stationery items inside a student school pencil box (Pencil, Eraser, Sharpener, Ruler)',
+        'Midnight kitchen utensils having an epic cooking party (Chef Fork, Pepper Shaker, Red Spatula, Chef Knife)',
+        'Smart gadgets on a computer desk dealing with 1% low battery emergency (Smartphone, Wireless Earbuds, Power Bank, Fast Cable)',
+        'Bathroom toiletries planning a morning freshness mission (Toothbrush Hero, Toothpaste Tube, Soapy Soap, Shower Sponge)',
+        'Bedroom toys and alarm clock organizing a wake-up heist (Alarm Clock, Fluffy Pillow, Night Lamp, Teddy Commander)',
+        'Shoe rack footwear preparing for an epic marathon race (Running Sneaker, Sturdy Boot, Comfy Slipper, Dancing Sandal)',
+        'Fridge snacks and drinks having a cool celebration (Apple Hero, Chilled Juice Bottle, Cheese Block, Ice Cream Cone)',
+        'Toolbox tools fixing a broken toy car (Hammer Boss, Screwdriver Scout, Wrench Muscle, Measuring Tape)'
+      ];
+      const selectedTheme = customTopic || themeIdeas[Math.floor(Math.random() * themeIdeas.length)];
+
+      const prompt = `You are a master 3D Pixar / Disney animation comedy writer for children.
+Write a funny, high-energy ${numScenes}-scene screenplay about ordinary non-living objects that secretly come to life with distinct funny personalities when humans aren't looking!
+
+Theme: ${selectedTheme}
+Language: Natural spoken Hindi dialogue with English/Hinglish comic punchlines (e.g. "Arre yaar!", "Emergency alert!").
+Tone: Playful, wholesome, funny, fast-paced, high cartoon energy suitable for kids and YouTube Shorts / Reels.
+
+Return ONLY a valid JSON object matching this exact structure:
+{
+  "title": "Creative Story Title",
+  "genre": "Pixar 3D Comedy Animation",
+  "tags": ["pixar", "3danimation", "cartoon", "hindi", "shorts", "reels", "kids"],
+  "scenes": [
+    {
+      "scene_index": 1,
+      "character": "Character Name",
+      "voice_type": "hero",
+      "dialogue": "Funny Hindi dialogue line that this character speaks enthusiastically",
+      "visual_prompt": "A high-quality 3D Pixar animation scene description with character appearance, expressions, lighting, 9:16 vertical orientation"
+    }
+  ]
+}
+Ensure there are exactly ${numScenes} scenes. The final scene must be an upbeat Outro & Call to Action (like and subscribe).`;
+
+      const aiText = new AITextService(this.credentials);
+      const rawResponse = await aiText.generateText(prompt, { temperature: 0.85 });
+      
+      let parsed = null;
+      try {
+        const jsonMatch = rawResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [null, rawResponse];
+        parsed = JSON.parse(jsonMatch[1] || rawResponse);
+      } catch (e) {
+        this.logger.warn(`JSON parse of Gemini script failed (${e.message}), using fallback story package`);
+      }
+
+      if (parsed && parsed.scenes && Array.isArray(parsed.scenes) && parsed.scenes.length >= 6) {
+        const { VOICE_PROFILES } = require('./storyboard-templates');
+        const voices = VOICE_PROFILES[language] || VOICE_PROFILES.hindi;
+        
+        const validatedStoryboard = parsed.scenes.map((s, idx) => {
+          const vType = s.voice_type || (idx === parsed.scenes.length - 1 ? 'outro' : 'hero');
+          const voiceCfg = voices[vType] || voices.hero;
+          return {
+            scene_index: idx + 1,
+            title: `Scene ${idx + 1}: ${s.character || 'Character'}`,
+            character: s.character || `Hero ${idx + 1}`,
+            voice_type: vType,
+            voice: voiceCfg.voice,
+            pitch: voiceCfg.pitch,
+            rate: voiceCfg.rate,
+            dialogue: s.dialogue,
+            visual_prompt: s.visual_prompt,
+            target_duration: 9.5
+          };
+        });
+
+        this.logger.info(`Gemini generated fresh 3D Pixar story: "${parsed.title}" (${validatedStoryboard.length} scenes)`);
+        return {
+          title: parsed.title,
+          genre: parsed.genre || 'Pixar 3D Comedy Animation',
+          tags: parsed.tags || ['pixar', '3danimation', 'cartoon', 'shorts'],
+          storyboard: validatedStoryboard
+        };
+      }
+    } catch (err) {
+      this.logger.warn(`Gemini script generation encountered error: ${err.message}. Using default 3D story.`);
+    }
+
+    return null;
   }
 
   async generateAnimatedVideo(options = {}) {
@@ -56,7 +147,11 @@ class PixarVideoEngine {
     } else if (scriptText && scriptText.trim().length > 0) {
       storyboardPackage = parseCustomScriptToStoryboard(scriptText, durationPreset, language);
     } else {
-      storyboardPackage = getShuffledStoryboard(durationPreset, language);
+      // Auto-generate fresh unique story with Gemini AI
+      storyboardPackage = await this.generateDynamicGeminiScript(durationPreset, language);
+      if (!storyboardPackage) {
+        storyboardPackage = getShuffledStoryboard(durationPreset, language);
+      }
     }
 
     const timestamp = Date.now();

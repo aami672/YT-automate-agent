@@ -404,9 +404,7 @@ function parseCustomScriptToStoryboard(scriptText, durationKey = '1min', languag
  * Get a random shuffled storyboard from our library
  */
 function getShuffledStoryboard(durationKey = '1min', language = 'hindi') {
-  const keys = Object.keys(STORY_PRESETS);
-  const randomKey = keys[Math.floor(Math.random() * keys.length)];
-  return expandStoryPreset(randomKey, durationKey, language);
+  return expandStoryPreset('backpack_squad', durationKey, language);
 }
 
 module.exports = {
