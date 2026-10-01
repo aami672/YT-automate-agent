@@ -127,12 +127,9 @@ def create_physical_school_bell(output_path, duration=4.0, sample_rate=44100):
 
 def create_cheerful_cartoon_bgm(output_path, total_duration=65.0, sample_rate=44100):
     """
-    Synthesize upbeat 124 BPM Disney/Pixar acoustic cartoon BGM with
+    Fast vectorized synthesis of upbeat 124 BPM Disney/Pixar acoustic cartoon BGM with
     Marimba, Ukulele strumming, Tuba pluck, and shakers in C-G-Am-F.
     """
-    t = np.linspace(0, total_duration, int(sample_rate * total_duration), endpoint=False)
-    bgm_audio = np.zeros_like(t)
-    
     bpm = 124.0
     beat_dur = 60.0 / bpm
     
@@ -155,9 +152,14 @@ def create_cheerful_cartoon_bgm(output_path, total_duration=65.0, sample_rate=44
         [NOTE_C4 * (4.0/3.0), NOTE_A4, NOTE_C5, NOTE_F5],
     ]
     
-    total_beats = int(total_duration / beat_dur)
+    # Generate 1 full 16-beat cycle (4 chords x 4 beats = 16 beats)
+    loop_beats = 16
+    loop_duration = loop_beats * beat_dur
+    loop_samples = int(sample_rate * loop_duration)
+    t_loop = np.linspace(0, loop_duration, loop_samples, endpoint=False)
+    loop_audio = np.zeros(loop_samples, dtype=np.float32)
     
-    for beat in range(total_beats):
+    for beat in range(loop_beats):
         t_beat = beat * beat_dur
         chord_idx = (beat // 4) % len(chords)
         chord = chords[chord_idx]
@@ -165,39 +167,44 @@ def create_cheerful_cartoon_bgm(output_path, total_duration=65.0, sample_rate=44
         # 1. Bass / Tuba pluck on downbeat
         if beat % 2 == 0:
             root_freq = chord[0] / 2.0
-            mask = (t >= t_beat) & (t < t_beat + beat_dur * 1.5)
-            dt = t[mask] - t_beat
+            mask = (t_loop >= t_beat) & (t_loop < t_beat + beat_dur * 1.5)
+            dt = t_loop[mask] - t_beat
             bass_pluck = 0.5 * np.sin(2 * np.pi * root_freq * dt) * np.exp(-dt * 6.0)
             bass_pluck += 0.2 * np.sin(2 * np.pi * root_freq * 2 * dt) * np.exp(-dt * 10.0)
-            bgm_audio[mask] += bass_pluck
+            loop_audio[mask] += bass_pluck
             
         # 2. Ukulele / Acoustic Strum on offbeats
         strum_time = t_beat + beat_dur * 0.5
-        mask_strum = (t >= strum_time) & (t < strum_time + beat_dur * 0.8)
-        dt_strum = t[mask_strum] - strum_time
+        mask_strum = (t_loop >= strum_time) & (t_loop < strum_time + beat_dur * 0.8)
+        dt_strum = t_loop[mask_strum] - strum_time
         for n in chord:
             strum_wave = 0.15 * np.sin(2 * np.pi * n * dt_strum) * np.exp(-dt_strum * 12.0)
             strum_wave += 0.05 * np.sin(2 * np.pi * n * 2 * dt_strum) * np.exp(-dt_strum * 18.0)
-            bgm_audio[mask_strum] += strum_wave
+            loop_audio[mask_strum] += strum_wave
             
         # 3. Playful Marimba 16th note pattern
         for sub in range(4):
             t_sub = t_beat + sub * (beat_dur / 4.0)
             note = chord[(beat * 4 + sub) % len(chord)]
-            mask_sub = (t >= t_sub) & (t < t_sub + beat_dur * 0.4)
-            dt_sub = t[mask_sub] - t_sub
+            mask_sub = (t_loop >= t_sub) & (t_loop < t_sub + beat_dur * 0.4)
+            dt_sub = t_loop[mask_sub] - t_sub
             marimba = 0.25 * np.sin(2 * np.pi * note * dt_sub) * np.exp(-dt_sub * 22.0)
             marimba += 0.15 * np.sin(2 * np.pi * note * 3 * dt_sub) * np.exp(-dt_sub * 35.0)
-            bgm_audio[mask_sub] += marimba
+            loop_audio[mask_sub] += marimba
             
         # 4. Light cute shaker
         for s in range(2):
             t_shaker = t_beat + s * (beat_dur / 2.0)
-            mask_shaker = (t >= t_shaker) & (t < t_shaker + 0.04)
-            dt_shaker = t[mask_shaker] - t_shaker
+            mask_shaker = (t_loop >= t_shaker) & (t_loop < t_shaker + 0.04)
+            dt_shaker = t_loop[mask_shaker] - t_shaker
             noise = (np.random.rand(len(dt_shaker)) * 2 - 1) * np.exp(-dt_shaker * 120.0)
-            bgm_audio[mask_shaker] += noise * 0.08
-
+            loop_audio[mask_shaker] += noise * 0.08
+            
+    # Tile loop to cover total_duration
+    num_repeats = int(np.ceil(total_duration / loop_duration)) + 1
+    total_samples = int(sample_rate * total_duration)
+    bgm_audio = np.tile(loop_audio, num_repeats)[:total_samples]
+    
     max_val = np.max(np.abs(bgm_audio))
     if max_val > 0:
         bgm_audio = (bgm_audio / max_val) * 0.80
@@ -595,18 +602,11 @@ async def main_async():
     bell_wav = os.path.join(audio_dir, "real_school_bell.wav")
     bgm_wav = os.path.join(audio_dir, "cheerful_cartoon_bgm.wav")
     
-    master_bell = project_root / "assets" / "pixar-audio" / "real_school_bell.wav"
-    master_bgm = project_root / "assets" / "pixar-audio" / "cheerful_cartoon_bgm.wav"
+    print("  [+] Dynamically synthesizing physical electric school bell SFX on-the-fly...", flush=True)
+    create_physical_school_bell(bell_wav, duration=4.0)
     
-    if master_bell.exists():
-        shutil.copyfile(str(master_bell), bell_wav)
-    else:
-        create_physical_school_bell(bell_wav, duration=4.0)
-        
-    if master_bgm.exists():
-        shutil.copyfile(str(master_bgm), bgm_wav)
-    else:
-        create_cheerful_cartoon_bgm(bgm_wav, total_duration=65.0)
+    print("  [+] Dynamically synthesizing 124 BPM Disney/Pixar acoustic BGM on-the-fly...", flush=True)
+    create_cheerful_cartoon_bgm(bgm_wav, total_duration=65.0)
     
     # 2. Stage 1: Generate dialogue tracks with apad alignment
     master_dialogue, padded_scene_audios = await create_cartoon_audio_tracks(storyboard, audio_dir)
