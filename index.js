@@ -940,8 +940,26 @@ class YouTubeAutomationAgent {
     this.app.post('/api/content/:productionId/retry', protect, async (req, res) => {
       const bundle = await this.db.getProductionBundle(req.params.productionId);
       if (!bundle) return res.status(404).json({ error: 'Content not found' });
+      
+      const isPixar = bundle.strategy?.requestedStyle === 'pixar_3d_animation' || 
+                      bundle.strategy?.style === 'pixar_3d_animation' ||
+                      (bundle.strategy?.topic && bundle.strategy.topic.toLowerCase().includes('pixar')) ||
+                      Boolean(req.body?.characterPreset);
+
+      if (isPixar) {
+        const job = await this.startPixarGenerationJob({
+          scriptText: req.body?.narrationText || req.body?.scriptText || bundle.script?.script || null,
+          presetKey: req.body?.characterPreset || 'kitchen_utensils',
+          duration: bundle.strategy?.requestedLengthKey || '1min',
+          language: req.body?.voiceTone?.includes('english') ? 'english' : 'hindi',
+          title: req.body?.title || bundle.editorData?.title || bundle.script?.title || 'Pixar 3D Animated Story',
+          source: 'retry'
+        });
+        return res.status(202).json({ success: true, result: job });
+      }
+
       const job = await this.startGenerationJob({
-        topic: bundle.strategy.topic || bundle.editorData.title || null,
+        topic: req.body?.title || bundle.strategy.topic || bundle.editorData.title || null,
         style: bundle.strategy.requestedStyle || bundle.strategy.contentType || null,
         length: bundle.strategy.requestedLengthKey || 'medium',
         source: 'retry'

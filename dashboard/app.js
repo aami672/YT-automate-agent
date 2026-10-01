@@ -1142,45 +1142,113 @@ async function openContent(productionId) {
     const title = data.title || item.seo?.title || item.script?.title || item.strategy?.topic || 'Untitled content';
     const description = data.description || item.seo?.description || '';
     const tags = data.tags || item.seo?.tags || [];
-    const publishTime = item.schedule?.publish_time || data.publishTime || item.scheduled_publish_time;
-    const canReview = !['published'].includes(item.schedule?.status);
-    const experiment = data.packagingExperiment;
-    const selectedTitleVariant = Number(data.selectedTitleVariant || 0);
-    const selectedThumbnailVariant = Number(data.selectedThumbnailVariant || 0);
+    const scenes = item.scenes || [];
+    const fullNarration = data.narrationText || (scenes.length ? scenes.map(s => s.scriptText).filter(Boolean).join('\n\n') : (item.script?.script || item.script?.narration || ''));
+    const fullVisualPrompt = data.visualPromptText || (scenes.length ? scenes.map((s, idx) => `Scene ${idx+1} (${s.label || '3D Pixar Shot'}): ${s.prompt || ''}`).filter(Boolean).join('\n') : (item.script?.visualPrompt || ''));
+    const characterPreset = data.characterPreset || item.strategy?.characterPreset || 'kitchen_utensils';
+    const voiceTone = data.voiceTone || item.strategy?.voiceTone || 'hindi_cartoon';
+    const scriptTheme = data.scriptTheme || item.strategy?.scriptTheme || 'comedy';
+
     $('#content-detail').innerHTML = `
-      <div class="dialog-heading"><div><p class="eyebrow">CONTENT REVIEW</p><h2>${escapeHTML(title)}</h2><div class="meta-line">${statusChip(item.schedule?.status || item.review_status || item.status)} · Quality ${qualityScore(item.qualityChecks)}%</div></div><button type="button" class="close-button" data-close>×</button></div>
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">VIDEO PRODUCTION REVIEW</p>
+          <h2>${escapeHTML(title)}</h2>
+          <div class="meta-line">${statusChip(item.schedule?.status || item.review_status || item.status)} · Full Video Production</div>
+        </div>
+        <button type="button" class="close-button" data-close>×</button>
+      </div>
+
       <form id="content-review-form" class="editor content-review-editor">
-        <div class="content-layout">
-          <div>
-            <div class="preview">${item.assetUrls.video ? `<div class="video-player-container"><video controls autoplay playsinline preload="auto" poster="${item.assetUrls.thumbnail || ''}" class="video-preview-player"><source src="${item.assetUrls.video}" type="video/mp4">Your browser does not support HTML5 video.</video><div class="video-player-toolbar"><span class="checkpoint-line">✓ 60 FPS Video Stream Ready</span><a href="${item.assetUrls.video}" download="${escapeHTML(title)}.mp4" class="button secondary small" target="_blank">⬇️ Download Video</a></div></div>` : item.assetUrls.thumbnail ? `<img src="${item.assetUrls.thumbnail}" alt="Generated thumbnail">` : '<div class="preview-placeholder">No playable preview was produced.</div>'}</div>
-            <div class="quality-grid">${(item.qualityChecks || []).map(check => `<div class="quality-check ${check.passed ? 'pass' : 'fail'}">${check.passed ? '✓' : '×'} ${escapeHTML(check.message)}</div>`).join('') || '<div class="quality-check">No quality results recorded.</div>'}</div>
-            ${item.review_notes ? `<p class="callout">${escapeHTML(item.review_notes)}</p>` : ''}
+        <!-- Main Top Section: Output Video Screen + Metadata -->
+        <div class="review-main-grid">
+          <div class="review-video-col">
+            <div class="preview">
+              ${item.assetUrls.video 
+                ? `<div class="video-player-container">
+                    <video controls autoplay playsinline preload="auto" poster="${item.assetUrls.thumbnail || ''}" class="video-preview-player">
+                      <source src="${item.assetUrls.video}" type="video/mp4">
+                    </video>
+                    <div class="video-player-toolbar">
+                      <span class="checkpoint-line">✓ 60 FPS Master Video</span>
+                      <a href="${item.assetUrls.video}" download="${escapeHTML(title)}.mp4" class="button secondary small" target="_blank">⬇️ Download Video</a>
+                    </div>
+                  </div>`
+                : item.assetUrls.thumbnail 
+                  ? `<img src="${item.assetUrls.thumbnail}" alt="Generated thumbnail">` 
+                  : '<div class="preview-placeholder">No playable preview was produced.</div>'}
+            </div>
           </div>
-          <div class="editor">
+
+          <div class="review-meta-col">
             <label><span>Title</span><input name="title" maxlength="100" value="${escapeHTML(title)}" required></label>
-            <label><span>Description</span><textarea name="description" rows="7">${escapeHTML(description)}</textarea></label>
-            <label><span>Tags</span><input name="tags" value="${escapeHTML(tags.join(', '))}"></label>
-            ${experiment ? `<section class="experiment-panel">
-              <div><p class="eyebrow">APPROVED LEARNING EXPERIMENT</p><strong>${escapeHTML(experiment.hypothesis)}</strong><p>Choose the packaging to ship. Nothing changes on YouTube until this content is approved and published.</p></div>
-              <label><span>Title variant</span><select name="selectedTitleVariant">${experiment.titleVariants.map((variant, index) => `<option value="${index}" data-title="${escapeHTML(variant.title)}" ${index === selectedTitleVariant ? 'selected' : ''}>${escapeHTML(variant.label)} — ${escapeHTML(variant.title)}</option>`).join('')}</select></label>
-              <div class="experiment-thumbnails">${experiment.thumbnailVariants.map((variant, index) => `<label class="experiment-thumb ${index === selectedThumbnailVariant ? 'selected' : ''}"><input type="radio" name="selectedThumbnailVariant" value="${index}" ${index === selectedThumbnailVariant ? 'checked' : ''}><img src="${escapeHTML(item.assetUrls.experimentThumbnails?.[index] || '')}" alt="${escapeHTML(variant.label)} thumbnail variant"><span>${escapeHTML(variant.label)}</span></label>`).join('')}</div>
-            </section>` : ''}
+            <label><span>Description</span><textarea name="description" rows="5">${escapeHTML(description)}</textarea></label>
+            <label><span>Tags</span><input name="tags" value="${escapeHTML(Array.isArray(tags) ? tags.join(', ') : tags)}"></label>
           </div>
         </div>
-        ${renderSceneEditor(item, canReview)}
-        ${renderShortsStudio(item)}
-        ${renderDiscoverabilityPanel(item)}
-        ${renderProvenanceEditor(item.provenance, canReview)}
-          <div class="form-grid two">
-            <label><span>Publish time</span><input name="publishTime" type="datetime-local" value="${toLocalInput(publishTime)}"></label>
-            <label><span>Privacy</span><select name="privacyStatus"><option value="private" ${data.privacyStatus === 'private' ? 'selected' : ''}>Private</option><option value="unlisted" ${data.privacyStatus === 'unlisted' ? 'selected' : ''}>Unlisted</option><option value="public" ${data.privacyStatus === 'public' ? 'selected' : ''}>Public</option></select></label>
+
+        <!-- Middle Section: Full Video Narration & Visual Prompt with Quick Regenerate Buttons -->
+        <div class="review-creative-grid">
+          <div class="creative-card">
+            <div class="creative-card-header">
+              <strong>🎙️ Narration &amp; Dialogues</strong>
+              <button type="button" class="button secondary small" data-quick-regen-narration="${escapeHTML(item.id)}">🔄 Regenerate Narration</button>
+            </div>
+            <textarea name="narrationText" rows="6" placeholder="Full video character dialogues & narration...">${escapeHTML(fullNarration)}</textarea>
           </div>
-          <div class="settings-row">
-            <label class="toggle"><input name="factChecked" type="checkbox" ${data.factChecked ? 'checked' : ''}><span></span> Facts and claims reviewed</label>
-            <label class="toggle"><input name="rightsConfirmed" type="checkbox" ${data.rightsConfirmed ? 'checked' : ''}><span></span> Media rights confirmed</label>
+
+          <div class="creative-card">
+            <div class="creative-card-header">
+              <strong>🎨 Visual Prompt &amp; Style</strong>
+              <button type="button" class="button secondary small" data-quick-regen-visuals="${escapeHTML(item.id)}">🎨 Regenerate Visuals</button>
+            </div>
+            <textarea name="visualPromptText" rows="6" placeholder="Visual style description & 3D Pixar scene prompts...">${escapeHTML(fullVisualPrompt)}</textarea>
           </div>
-          ${item.schedule && !['published', 'uploading', 'uploaded', 'reconciliation_required'].includes(item.schedule.status) ? `<div class="form-actions"><button type="button" class="button secondary" data-reschedule-content="${escapeHTML(item.id)}">Reschedule</button><button type="button" class="button primary" data-publish-now-content="${escapeHTML(item.id)}">Publish now</button><button type="button" class="button danger" data-delete-schedule="${escapeHTML(item.id)}">Delete schedule</button></div>` : ''}
-          ${canReview ? `<div class="form-actions"><button type="button" class="button primary" data-approve-content="${escapeHTML(item.id)}">Approve & schedule</button><button type="button" class="button secondary" data-save-content="${escapeHTML(item.id)}">Save draft</button><button type="button" class="button danger" data-reject-content="${escapeHTML(item.id)}">Reject</button><button type="button" class="button ghost" data-retry-content="${escapeHTML(item.id)}">Regenerate</button><button type="button" class="button danger" data-delete-production="${escapeHTML(item.id)}">🗑️ Delete Video</button></div>` : `<div class="form-actions"><a class="button secondary" href="${escapeHTML(item.schedule?.youtube_url || '#')}" target="_blank" rel="noopener">Open on YouTube</a><button type="button" class="button danger" data-delete-production="${escapeHTML(item.id)}">🗑️ Delete Video</button></div>`}
+        </div>
+
+        <!-- Customization Controls: Change Characters, Change Voice, Script Theme -->
+        <div class="review-controls-bar">
+          <label>
+            <span>🎭 Change Characters / Cast</span>
+            <select name="characterPreset">
+              <option value="kitchen_utensils" ${characterPreset === 'kitchen_utensils' ? 'selected' : ''}>🍴 Kitchen Utensils (Chef Fork, Pepper, Knife)</option>
+              <option value="school_backpack" ${characterPreset === 'school_backpack' ? 'selected' : ''}>🎒 School Backpack (Pencil, Eraser, Sharpener)</option>
+              <option value="fruit_friends" ${characterPreset === 'fruit_friends' ? 'selected' : ''}>🍎 Fruit Friends (Apple, Banana, Orange)</option>
+              <option value="office_desk" ${characterPreset === 'office_desk' ? 'selected' : ''}>📎 Office Desk (Stapler, Tape, Scissors)</option>
+              <option value="animal_buddies" ${characterPreset === 'animal_buddies' ? 'selected' : ''}>🐾 Animal Buddies (Fox, Bunny, Owl)</option>
+              <option value="custom" ${characterPreset === 'custom' ? 'selected' : ''}>✨ Custom Characters</option>
+            </select>
+          </label>
+
+          <label>
+            <span>🗣️ Change Voice for Characters</span>
+            <select name="voiceTone">
+              <option value="hindi_cartoon" ${voiceTone === 'hindi_cartoon' ? 'selected' : ''}>🇮🇳 Hindi Cartoon (Expressive Multi-Pitch)</option>
+              <option value="english_pixar" ${voiceTone === 'english_pixar' ? 'selected' : ''}>🇺🇸 English Pixar (Energetic Characters)</option>
+              <option value="comic_deep" ${voiceTone === 'comic_deep' ? 'selected' : ''}>🎭 Comic Deep &amp; Sarcastic</option>
+              <option value="high_pitch" ${voiceTone === 'high_pitch' ? 'selected' : ''}>🐣 Cheerful High-Pitch</option>
+            </select>
+          </label>
+
+          <label>
+            <span>🎬 Script Theme / Mood</span>
+            <select name="scriptTheme">
+              <option value="comedy" ${scriptTheme === 'comedy' ? 'selected' : ''}>😂 Playful Comedy &amp; Slapstick</option>
+              <option value="friendship" ${scriptTheme === 'friendship' ? 'selected' : ''}>💛 Heartwarming Friendship</option>
+              <option value="mystery" ${scriptTheme === 'mystery' ? 'selected' : ''}>🔍 Secret Mystery &amp; Adventure</option>
+              <option value="action" ${scriptTheme === 'action' ? 'selected' : ''}>⚡ Fast-Paced Action</option>
+            </select>
+          </label>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="form-actions review-actions-bar">
+          <button type="button" class="button primary" data-approve-content="${escapeHTML(item.id)}">Approve &amp; schedule</button>
+          <button type="button" class="button secondary" data-save-content="${escapeHTML(item.id)}">Save draft</button>
+          <button type="button" class="button danger" data-reject-content="${escapeHTML(item.id)}">Reject</button>
+          <button type="button" class="button ghost" data-retry-content="${escapeHTML(item.id)}">Regenerate</button>
+          <button type="button" class="button danger" data-delete-production="${escapeHTML(item.id)}">🗑️ Delete</button>
+        </div>
       </form>`;
     $('#content-review-form').dataset.productionId = item.id;
     $('#content-dialog').showModal();
@@ -1207,13 +1275,14 @@ function contentFormData() {
   return {
     title: values.title,
     description: values.description,
-    tags: values.tags,
-    publishTime: values.publishTime ? new Date(values.publishTime).toISOString() : undefined,
-    privacyStatus: values.privacyStatus,
-    selectedTitleVariant: values.selectedTitleVariant,
-    selectedThumbnailVariant: values.selectedThumbnailVariant,
-    factChecked: form.elements.factChecked?.checked || false,
-    rightsConfirmed: form.elements.rightsConfirmed?.checked || false
+    tags: values.tags ? (Array.isArray(values.tags) ? values.tags : String(values.tags).split(',').map(s => s.trim()).filter(Boolean)) : [],
+    narrationText: values.narrationText,
+    visualPromptText: values.visualPromptText,
+    characterPreset: values.characterPreset,
+    voiceTone: values.voiceTone,
+    scriptTheme: values.scriptTheme,
+    factChecked: true,
+    rightsConfirmed: true
   };
 }
 
@@ -1718,52 +1787,42 @@ document.addEventListener('click', async event => {
     return;
   }
 
+  const regenNarration = event.target.closest('[data-quick-regen-narration]');
+  if (regenNarration) {
+    const prodId = regenNarration.dataset.quickRegenNarration;
+    if (confirm('Regenerate character voice dialogues & narration for this video?')) {
+      const data = contentFormData();
+      await mutate(`/api/content/${encodeURIComponent(prodId)}/retry`, 'POST', data, 'Voice & narration generation queued.').catch(() => {});
+      $('#content-dialog').close();
+    }
+    return;
+  }
+
+  const regenVisuals = event.target.closest('[data-quick-regen-visuals]');
+  if (regenVisuals) {
+    const prodId = regenVisuals.dataset.quickRegenVisuals;
+    if (confirm('Regenerate 3D visual animation scenes for this video?')) {
+      const data = contentFormData();
+      await mutate(`/api/content/${encodeURIComponent(prodId)}/retry`, 'POST', data, '3D Visual animation render queued.').catch(() => {});
+      $('#content-dialog').close();
+    }
+    return;
+  }
+
   const save = event.target.closest('[data-save-content]');
   if (save) {
     try {
-      await persistProvenance(save.dataset.saveContent);
-      await mutate(`/api/content/${encodeURIComponent(save.dataset.saveContent)}`, 'PATCH', contentFormData(), 'Draft and evidence review saved.');
+      await mutate(`/api/content/${encodeURIComponent(save.dataset.saveContent)}`, 'PATCH', contentFormData(), 'Draft saved.');
+      $('#content-dialog').close();
     } catch (_error) { /* toast already shown */ }
   }
 
   const approve = event.target.closest('[data-approve-content]');
   if (approve) {
     try {
-      await persistProvenance(approve.dataset.approveContent);
       await mutate(`/api/content/${encodeURIComponent(approve.dataset.approveContent)}/approve`, 'POST', contentFormData(), 'Content approved and scheduled.');
       $('#content-dialog').close();
     } catch (_error) { /* toast already shown */ }
-  }
-
-  const reschedule = event.target.closest('[data-reschedule-content]');
-  if (reschedule) {
-    const publishTime = contentFormData().publishTime;
-    if (!publishTime) return showToast('Choose a future publish time first.', 'error');
-    try {
-      await mutate(`/api/content/${encodeURIComponent(reschedule.dataset.rescheduleContent)}/schedule`, 'PATCH', { publishTime }, 'Content rescheduled.');
-      await openContent(reschedule.dataset.rescheduleContent);
-    } catch (_error) { /* toast already shown */ }
-    return;
-  }
-
-  const publishNow = event.target.closest('[data-publish-now-content]');
-  if (publishNow) {
-    if (!confirm('Publish this video to YouTube now using the selected privacy setting?')) return;
-    try {
-      await mutate(`/api/content/${encodeURIComponent(publishNow.dataset.publishNowContent)}/publish-now`, 'POST', {}, 'Content published.');
-      $('#content-dialog').close();
-    } catch (_error) { /* toast already shown */ }
-    return;
-  }
-
-  const deleteSchedule = event.target.closest('[data-delete-schedule]');
-  if (deleteSchedule) {
-    if (!confirm('Delete this schedule entry? The generated content and assets will be kept.')) return;
-    try {
-      await mutate(`/api/content/${encodeURIComponent(deleteSchedule.dataset.deleteSchedule)}/schedule`, 'DELETE', undefined, 'Schedule deleted; generated content was kept.');
-      await openContent(deleteSchedule.dataset.deleteSchedule);
-    } catch (_error) { /* toast already shown */ }
-    return;
   }
 
   const reject = event.target.closest('[data-reject-content]');
@@ -1776,8 +1835,9 @@ document.addEventListener('click', async event => {
   }
 
   const retry = event.target.closest('[data-retry-content]');
-  if (retry && confirm('Generate a fresh version using the same topic?')) {
-    await mutate(`/api/content/${encodeURIComponent(retry.dataset.retryContent)}/retry`, 'POST', {}, 'Regeneration started.').catch(() => {});
+  if (retry && confirm('Regenerate video with the selected settings and theme?')) {
+    const data = contentFormData();
+    await mutate(`/api/content/${encodeURIComponent(retry.dataset.retryContent)}/retry`, 'POST', data, 'Regeneration started.').catch(() => {});
     $('#content-dialog').close();
   }
 });

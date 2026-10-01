@@ -749,7 +749,109 @@ label:has(input:disabled) > span { color: var(--muted); }
 .dialog form { display: grid; gap: 18px; }
 .dialog-heading { display: flex; align-items: start; justify-content: space-between; gap: 14px; }
 .dialog-heading h2 { font-size: 24px; letter-spacing: -.02em; }
-.content-dialog { width: min(1080px, calc(100vw - 30px)); max-height: calc(100vh - 30px); overflow: auto; }
+.content-dialog { width: min(920px, calc(100vw - 30px)); max-height: calc(100vh - 30px); overflow: auto; }
+
+/* ============ Streamlined Video Review Studio ============ */
+.review-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .review-main-grid { grid-template-columns: 1fr; }
+}
+
+.review-video-col .preview {
+  width: 100%;
+  aspect-ratio: 9/16;
+  max-height: 420px;
+  background: #000;
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.review-video-col .video-preview-player {
+  max-height: 360px;
+  width: 100%;
+  object-fit: contain;
+}
+
+.review-meta-col {
+  display: grid;
+  gap: 12px;
+}
+
+.review-creative-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+@media (max-width: 768px) {
+  .review-creative-grid { grid-template-columns: 1fr; }
+}
+
+.creative-card {
+  display: grid;
+  gap: 8px;
+  background: var(--surface-inset);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+
+.creative-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.creative-card-header strong {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.creative-card textarea {
+  width: 100%;
+  resize: vertical;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.5;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.review-controls-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  background: linear-gradient(135deg, rgba(255, 77, 94, 0.07), rgba(196, 123, 255, 0.09));
+  border: 1px solid rgba(255, 77, 94, 0.22);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  margin-top: 6px;
+}
+
+@media (max-width: 768px) {
+  .review-controls-bar { grid-template-columns: 1fr; }
+}
+
+.review-actions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
 
 /* ============ Toast & loading ============ */
 .toast {
