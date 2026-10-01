@@ -1,12 +1,12 @@
 """
 Universal Pixar 3D Animated Video Renderer (V3 Engine)
-Exact generation sequence and format ported from ai_reels_project:
+Exact 1-to-1 port from ai_reels_project (rerender_and_assemble_v3.py):
 - Multi-character high-pitch cartoon TTS voices (custom pitch/rate per character)
-- apad per-scene audio alignment & slot padding (9.54s / 10.04s)
-- Realistic physical school bell chime SFX synthesis (numpy inharmonic modal frequencies)
+- apad per-scene audio alignment & slot padding (9.54s / 10.04s) into master_dialogue.mp3
+- Authentic physical electric school bell chime SFX (7 modal frequencies + 16.5Hz hammer)
 - Upbeat 124 BPM Disney/Pixar acoustic cartoon BGM (Marimba, Ukulele, Glockenspiel in C-G-Am-F major)
-- 3D animated scene video clips integration & strict 720x1280 (9:16 vertical) normalization
-- Cinematic dissolve crossfades (xfade=transition=fade) with intro fade-in and outro fade-out
+- 3D animated scene video clips integration & strict 720x1280 (9:16 vertical) normalization (full 10s clips)
+- Cinematic 5-stage xfade dissolve sequence at exact offsets (9.54, 19.08, 28.62, 38.16, 47.70)
 - Master multi-track audio mixing ([a_diag][a_bgm][a_bell]amix) and progressive 60 FPS H.264 MP4 delivery.
 """
 
@@ -362,16 +362,15 @@ def render_fallback_frame(character_name, scene_title, width, height, output_png
     img.save(output_png, quality=95)
     return output_png
 
-def normalize_scene_clip_video(input_clip, output_mp4, duration, fps=60, width=720, height=1280):
+def normalize_scene_clip_video(input_clip, output_mp4, duration=10.0, fps=60, width=720, height=1280):
     """
-    Normalize an animated 3D video clip to strict 720x1280 9:16 aspect ratio,
-    high visual quality (CRF 17), and target duration.
+    Standardize an animated 3D video clip to strict 720x1280 9:16 aspect ratio,
+    high visual quality (CRF 17), and full 10s duration for seamless xfade transitions.
     """
     os.makedirs(os.path.dirname(os.path.abspath(output_mp4)), exist_ok=True)
     cmd = [
         FFMPEG, "-y",
         "-i", str(input_clip),
-        "-t", f"{duration:.2f}",
         "-vf", (
             f"scale={width}:{height}:force_original_aspect_ratio=increase,"
             f"crop={width}:{height},"
@@ -392,9 +391,9 @@ def normalize_scene_clip_video(input_clip, output_mp4, duration, fps=60, width=7
         raise RuntimeError(f"Clip normalization failed: {p.stderr}")
     return output_mp4
 
-def render_scene_clip_from_image(image_source, output_mp4, duration, fps=60, width=720, height=1280):
+def render_scene_clip_from_image(image_source, output_mp4, duration=10.5, fps=60, width=720, height=1280):
     """
-    Render standardized 720x1280 9:16 vertical video clip with subtle motion from static frame.
+    Render standardized 720x1280 9:16 vertical video clip from static frame for 10.5s duration.
     """
     os.makedirs(os.path.dirname(os.path.abspath(output_mp4)), exist_ok=True)
     
@@ -412,8 +411,8 @@ def render_scene_clip_from_image(image_source, output_mp4, duration, fps=60, wid
             f"fps={fps}"
         ),
         "-c:v", "libx264",
-        "-preset", "medium",
-        "-crf", "16",
+        "-preset", "veryfast",
+        "-crf", "17",
         "-pix_fmt", "yuv420p",
         str(output_mp4)
     ]
@@ -475,39 +474,22 @@ async def create_cartoon_audio_tracks(storyboard, audio_dir):
     print(f"  [✓] Master Cartoon Dialogue Track: {master_dialogue}", flush=True)
     return master_dialogue, scene_audios
 
-def build_dissolve_sequence_with_start_end_fades(clip_paths, output_dir, final_slot_offsets=None):
+def build_dissolve_sequence_with_start_end_fades(clip_paths, output_dir):
     """
-    Assemble scene clips using xfade cross dissolves, fade-in from black,
-    and fade-out to black.
+    Assemble 6 standardized scene clips using the exact 5-stage xfade cross dissolves
+    matching ai_reels_project (rerender_and_assemble_v3.py).
     """
     print("\n[3/4] ✨ Normalizing to Strict 9:16 (720x1280) & Applying In/Out Dissolves...", flush=True)
     num_scenes = len(clip_paths)
-    transition_dur = 0.50
     
-    # Calculate accumulated xfade offsets
-    if final_slot_offsets is None:
-        offsets = []
-        accum = 0.0
-        for i in range(num_scenes - 1):
-            accum += 9.54
-            offsets.append(accum)
-    else:
-        offsets = final_slot_offsets
-
-    filter_complex_parts = []
-    if num_scenes == 1:
-        total_dur = 10.0
-        filter_complex_parts.append(f"[0:v]fade=t=in:st=0:d=0.75,fade=t=out:st={total_dur - 1.0:.2f}:d=1.0[vout]")
-    else:
-        filter_complex_parts.append(f"[0:v][1:v]xfade=transition=fade:duration={transition_dur}:offset={offsets[0]:.2f}[v01]")
-        last_v = "v01"
-        for i in range(2, num_scenes):
-            next_v = f"v0{i}"
-            filter_complex_parts.append(f"[{last_v}][{i}:v]xfade=transition=fade:duration={transition_dur}:offset={offsets[i-1]:.2f}[{next_v}]")
-            last_v = next_v
-            
-        total_dur = offsets[-1] + 10.04 - transition_dur
-        filter_complex_parts.append(f"[{last_v}]fade=t=in:st=0:d=0.75,fade=t=out:st={total_dur - 1.0:.2f}:d=1.0[vout]")
+    filter_complex = (
+        "[0:v][1:v]xfade=transition=fade:duration=0.5:offset=9.54[v01];"
+        "[v01][2:v]xfade=transition=fade:duration=0.5:offset=19.08[v02];"
+        "[v02][3:v]xfade=transition=fade:duration=0.5:offset=28.62[v03];"
+        "[v03][4:v]xfade=transition=fade:duration=0.5:offset=38.16[v04];"
+        "[v04][5:v]xfade=transition=fade:duration=0.5:offset=47.70[v_xfade];"
+        "[v_xfade]fade=t=in:st=0:d=0.75,fade=t=out:st=56.75:d=1.0[vout]"
+    )
 
     xfade_output = os.path.join(output_dir, "master_dissolve_video.mp4")
     inputs = []
@@ -517,11 +499,11 @@ def build_dissolve_sequence_with_start_end_fades(clip_paths, output_dir, final_s
     cmd = [
         FFMPEG, "-y",
         *inputs,
-        "-filter_complex", ";".join(filter_complex_parts),
+        "-filter_complex", filter_complex,
         "-map", "[vout]",
         "-c:v", "libx264",
         "-preset", "medium",
-        "-crf", "16",
+        "-crf", "17",
         "-pix_fmt", "yuv420p",
         xfade_output
     ]
@@ -532,27 +514,25 @@ def build_dissolve_sequence_with_start_end_fades(clip_paths, output_dir, final_s
         raise RuntimeError(f"xfade failure: {res.stderr}")
         
     print(f"  [✓] Dissolve Video Ready: {xfade_output}", flush=True)
-    return xfade_output, total_dur
+    return xfade_output
 
-def produce_final_master_v3(video_path, dialogue_path, bgm_path, bell_path, output_path, total_dur, bell_delay_s=47.70, fps=60):
+def produce_final_master_v3(video_path, dialogue_path, bgm_path, bell_path, output_path):
     """
     Multiplex Master Reel with Boosted BGM, Real School Bell SFX, and progressive 60 FPS output.
+    Exact matching to produce_final_master_v3 from ai_reels_project.
     """
     print("\n[4/4] 🚀 Multiplexing Master Reel with Boosted BGM, Real School Bell SFX, and 60 FPS...", flush=True)
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     
-    bell_delay_ms = int(bell_delay_s * 1000)
-    audio_fade_out_st = max(1.0, total_dur - 1.25)
-    
     audio_filter = (
-        f"[1:a]volume=1.05,aformat=channel_layouts=stereo[a_diag];"
-        f"[2:a]volume=0.35,aformat=channel_layouts=stereo[a_bgm];"
-        f"[3:a]adelay={bell_delay_ms}|{bell_delay_ms},volume=0.90,aformat=channel_layouts=stereo[a_bell];"
-        f"[a_diag][a_bgm][a_bell]amix=inputs=3:duration=first:dropout_transition=2,"
-        f"afade=t=in:st=0:d=0.3,afade=t=out:st={audio_fade_out_st:.2f}:d=1.2[a_mix]"
+        "[1:a]volume=1.05,aformat=channel_layouts=stereo[a_diag];"
+        "[2:a]volume=0.35,aformat=channel_layouts=stereo[a_bgm];"
+        "[3:a]adelay=47700|47700,volume=0.90,aformat=channel_layouts=stereo[a_bell];"
+        "[a_diag][a_bgm][a_bell]amix=inputs=3:duration=first:dropout_transition=2,"
+        "afade=t=in:st=0:d=0.3,afade=t=out:st=56.5:d=1.2[a_mix]"
     )
     
-    video_filter = f"[0:v]fps=fps={fps}[v60]"
+    video_filter = "[0:v]fps=fps=60[v60]"
     full_filter = f"{video_filter};{audio_filter}"
     
     cmd = [
@@ -571,7 +551,7 @@ def produce_final_master_v3(video_path, dialogue_path, bgm_path, bell_path, outp
         "-c:a", "aac",
         "-b:a", "256k",
         "-ar", "44100",
-        "-t", f"{total_dur:.2f}",
+        "-shortest",
         output_path
     ]
     print(f"  [+] Final encoding to 60 FPS MP4 ({output_path})...", flush=True)
@@ -606,7 +586,7 @@ async def main_async():
     print(f"Scenes: {len(storyboard)} | Target: {width}x{height} @ {fps} FPS")
     print("=" * 75, flush=True)
     
-    # 1. Generate SFX & BGM Assets
+    # 1. Master SFX & BGM Assets
     audio_dir = str(temp_dir / "audio_tracks")
     clips_dir = str(temp_dir / "scene_clips")
     os.makedirs(audio_dir, exist_ok=True)
@@ -638,13 +618,12 @@ async def main_async():
     
     for idx, scene in enumerate(storyboard):
         clip_file = os.path.join(clips_dir, f"scene_{idx}.mp4")
-        slot_dur = 10.04 if idx == num_scenes - 1 else 9.54
         
         # 1. Check for animated 3D video clip
         anim_clip = resolve_character_clip(scene, idx, project_root)
         if anim_clip and os.path.exists(anim_clip):
-            print(f"  [+] Using 3D animated source video for Scene {idx+1}: {anim_clip}", flush=True)
-            normalize_scene_clip_video(anim_clip, clip_file, slot_dur, fps=fps, width=width, height=height)
+            print(f"  [+] Standardizing 3D animated source video for Scene {idx+1}: {anim_clip}", flush=True)
+            normalize_scene_clip_video(anim_clip, clip_file, duration=10.0, fps=fps, width=width, height=height)
         else:
             # 2. Check for 3D reference image
             ref_image = resolve_character_image(scene, project_root)
@@ -654,26 +633,21 @@ async def main_async():
                 ref_image = frame_png
             
             print(f"  [+] Rendering Scene {idx+1} from 3D reference image: {ref_image}", flush=True)
-            render_scene_clip_from_image(ref_image, clip_file, slot_dur, fps=fps, width=width, height=height)
+            render_scene_clip_from_image(ref_image, clip_file, duration=10.5, fps=fps, width=width, height=height)
             
         clip_paths.append(clip_file)
-        print(f"  [✓] Scene {idx+1}/{num_scenes} clip ready: {clip_file} ({slot_dur}s)", flush=True)
+        print(f"  [✓] Scene {idx+1}/{num_scenes} clip ready: {clip_file}", flush=True)
 
     # 4. Stage 3: Assemble dissolve sequence with start & end fades
-    offsets = [9.54 * (i + 1) for i in range(num_scenes - 1)]
-    dissolve_video, total_dur = build_dissolve_sequence_with_start_end_fades(clip_paths, str(temp_dir), offsets)
+    dissolve_video = build_dissolve_sequence_with_start_end_fades(clip_paths, str(temp_dir))
     
     # 5. Stage 4: Produce final 60 FPS master
-    bell_delay = offsets[-1] if len(offsets) > 0 else 1.0
     final_output = produce_final_master_v3(
         dissolve_video,
         master_dialogue,
         bgm_wav,
         bell_wav,
-        output_path,
-        total_dur,
-        bell_delay_s=bell_delay,
-        fps=fps
+        output_path
     )
     
     print("\n✅ PIXAR 3D ANIMATION PIPELINE COMPLETE!")
