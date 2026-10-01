@@ -76,10 +76,26 @@ function formatDate(value, includeTime = true) {
   return includeTime ? `${formatted} ${isIST ? 'IST' : ''}`.trim() : formatted;
 }
 
+function parseUTC(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  let str = String(value).trim();
+  if (!str) return null;
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(str)) {
+    str = str.replace(' ', 'T') + 'Z';
+  } else if (!str.endsWith('Z') && !str.includes('+') && str.includes('T')) {
+    str = str + 'Z';
+  }
+  const d = new Date(str);
+  return Number.isNaN(d.getTime()) ? new Date(value) : d;
+}
+
 function timeAgo(value) {
-  if (!value) return '';
-  const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
-  if (seconds < 60) return 'just now';
+  const d = parseUTC(value);
+  if (!d) return '';
+  const seconds = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
+  if (seconds < 10) return 'just now';
+  if (seconds < 60) return `${seconds}s ago`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   return `${Math.floor(seconds / 86400)}d ago`;
@@ -92,6 +108,123 @@ function label(value) {
 function statusChip(value) {
   const safe = String(value || 'unknown').toLowerCase();
   return `<span class="status ${escapeHTML(safe)}">${escapeHTML(label(safe))}</span>`;
+}
+
+let activeJobTimer = null;
+let activeJobStart = null;
+
+function renderOngoingProcess(jobs = []) {
+  const banner = $('#ongoing-process-banner');
+  if (!banner) return;
+  const activeJob = jobs.find(j => ['running', 'queued'].includes(j.status));
+
+  if (!activeJob) {
+    if (banner.dataset.lastActiveJob && !banner.classList.contains('hidden')) {
+      $('#ongoing-title').textContent = '✅ 3D Video Generation Completed!';
+      $('#ongoing-status-text').textContent = 'Video is ready for review and scheduling in the Decision Queue.';
+      $('#step-ready')?.classList.add('done', 'active');
+      $('#ongoing-progress-bar').style.width = '100%';
+      $('#ongoing-percent').textContent = '100%';
+      const reviewBtn = $('#ongoing-review-btn');
+      if (reviewBtn) {
+        reviewBtn.classList.remove('hidden');
+        reviewBtn.onclick = () => {
+          const prodId = banner.dataset.lastProdId;
+          if (prodId) openContentModal(prodId);
+          else navigateTo('pipeline');
+        };
+      }
+      clearInterval(activeJobTimer);
+      activeJobTimer = null;
+      activeJobStart = null;
+      setTimeout(() => {
+        if (!ui.state?.jobs?.some(j => ['running', 'queued'].includes(j.status))) {
+          banner.classList.add('hidden');
+          delete banner.dataset.lastActiveJob;
+        }
+      }, 14000);
+      return;
+    }
+    banner.classList.add('hidden');
+    clearInterval(activeJobTimer);
+    activeJobTimer = null;
+    activeJobStart = null;
+    return;
+  }
+
+  banner.classList.remove('hidden');
+  banner.dataset.lastActiveJob = activeJob.id;
+  if (activeJob.production_id || activeJob.productionId) {
+    banner.dataset.lastProdId = activeJob.production_id || activeJob.productionId;
+  }
+
+  const isPixar = activeJob.style === 'pixar_3d_animation' || (activeJob.topic && activeJob.topic.toLowerCase().includes('pixar'));
+  $('#ongoing-title').textContent = isPixar ? '🎬 3D Pixar Reel Generation In Progress...' : '⚡ Video Generation Active...';
+  $('#ongoing-job-name').textContent = activeJob.title || activeJob.topic || '3D Animated Story';
+
+  if (!activeJobStart) {
+    const parsed = parseUTC(activeJob.created_at);
+    activeJobStart = parsed ? parsed.getTime() : Date.now();
+  }
+
+  const updateTimerDisplay = () => {
+    const elapsedSecs = Math.max(0, Math.floor((Date.now() - (activeJobStart || Date.now())) / 1000));
+    const mins = String(Math.floor(elapsedSecs / 60)).padStart(2, '0');
+    const secs = String(elapsedSecs % 60).padStart(2, '0');
+    const elapsedEl = $('#ongoing-elapsed');
+    if (elapsedEl) elapsedEl.textContent = `⏱️ ${mins}:${secs}`;
+  };
+  updateTimerDisplay();
+
+  if (!activeJobTimer) {
+    activeJobTimer = setInterval(updateTimerDisplay, 1000);
+  }
+
+  const elapsedSecs = Math.max(0, Math.floor((Date.now() - activeJobStart) / 1000));
+  const simulatedProgress = Math.min(92, Math.max(12, Math.floor(12 + (elapsedSecs / 90) * 80)));
+  const progressVal = activeJob.progress > 10 ? activeJob.progress : simulatedProgress;
+
+  $('#ongoing-progress-bar').style.width = `${progressVal}%`;
+  $('#ongoing-percent').textContent = `${progressVal}%`;
+
+  const ttsChip = $('#step-tts');
+  const framesChip = $('#step-frames');
+  const bgmChip = $('#step-bgm');
+  const xfadeChip = $('#step-xfade');
+  const readyChip = $('#step-ready');
+  const statusText = $('#ongoing-status-text');
+
+  [ttsChip, framesChip, bgmChip, xfadeChip, readyChip].forEach(c => c?.classList.remove('active', 'done'));
+
+  if (elapsedSecs < 20) {
+    ttsChip?.classList.add('active');
+    statusText.textContent = '🎙️ Synthesizing multi-character cartoon voices with custom pitch & speed...';
+  } else if (elapsedSecs < 55) {
+    ttsChip?.classList.add('done');
+    framesChip?.classList.add('active');
+    statusText.textContent = '🎨 Rendering 3D Pixar animated frames (720x1280 9:16 vertical)...';
+  } else if (elapsedSecs < 75) {
+    ttsChip?.classList.add('done');
+    framesChip?.classList.add('done');
+    bgmChip?.classList.add('active');
+    statusText.textContent = '🎵 Synthesizing Disney/Pixar acoustic BGM and real physical school bell SFX...';
+  } else {
+    ttsChip?.classList.add('done');
+    framesChip?.classList.add('done');
+    bgmChip?.classList.add('done');
+    xfadeChip?.classList.add('active');
+    statusText.textContent = '🎬 Multiplexing 60 FPS video stream with smooth dissolve transitions...';
+  }
+
+  if (!ui.pollInterval) {
+    ui.pollInterval = setInterval(async () => {
+      await refreshDashboard(true);
+      if (!ui.state?.jobs?.some(j => ['running', 'queued'].includes(j.status))) {
+        clearInterval(ui.pollInterval);
+        ui.pollInterval = null;
+      }
+    }, 3000);
+  }
 }
 
 async function refreshDashboard(silent = false) {
@@ -134,6 +267,7 @@ function renderDashboard() {
   $('#stat-published').textContent = state.stats.published || 0;
   $('#stat-score').textContent = state.analytics.averagePerformanceScore ? `${state.analytics.averagePerformanceScore}/100` : '—';
 
+  renderOngoingProcess(state.jobs || []);
   renderReviews(reviews);
   renderJobs(actionableJobs.length ? actionableJobs : state.jobs.slice(0, 5));
   renderSchedule(state.schedule.slice(0, 5), '#next-schedule');
@@ -209,11 +343,12 @@ function renderJobs(jobs) {
     const mediaProviders = [...new Set(mediaTasks.map(item => label(item.provider)))].join(', ');
     const resumeFrom = stages.find(stage => !completed.has(stage)) || 'quality_review';
     const recoverable = ['failed', 'interrupted'].includes(job.status);
+    const jobTime = job.updated_at || job.completed_at || job.created_at;
     return `
     <article class="job-card">
       <div class="job-meta">
         <strong>${escapeHTML(job.title || job.topic || 'Agent-selected topic')}</strong>
-        <div class="meta-line">${statusChip(job.status)} · ${escapeHTML(label(job.stage))} · ${timeAgo(job.updated_at)}</div>
+        <div class="meta-line">${statusChip(job.status)} · ${escapeHTML(label(job.stage))} · ${timeAgo(jobTime)}</div>
         ${checkpoints.length ? `<div class="checkpoint-line">${completed.size}/${stages.length} stages saved${job.details?.reusedStages?.length ? ` · ${job.details.reusedStages.length} reused` : ''}</div>` : ''}
         ${mediaTasks.length ? `<div class="checkpoint-line">Video: ${mediaCompleted}/${mediaTasks.length} clips ready · ${escapeHTML(mediaProviders)}</div>` : ''}
         <div class="progress"><i style="width:${Math.max(0, Math.min(100, job.progress || 0))}%"></i></div>

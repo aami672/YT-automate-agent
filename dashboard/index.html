@@ -53,6 +53,47 @@
       <div id="loading" class="loading-bar"></div>
       <div id="toast" class="toast hidden" role="status"></div>
 
+      <!-- Live Ongoing Process Window -->
+      <div id="ongoing-process-banner" class="ongoing-process-card hidden">
+        <div class="ongoing-header">
+          <div class="ongoing-badge-pulse">
+            <span class="live-dot pulse"></span>
+            <strong id="ongoing-title">🎬 3D Pixar Reel Generation Active</strong>
+            <span class="ongoing-live-tag">LIVE</span>
+          </div>
+          <div class="ongoing-timer-box">
+            <span id="ongoing-elapsed">⏱️ 00:00</span>
+            <span class="ongoing-tz">IST</span>
+          </div>
+        </div>
+        <div class="ongoing-body">
+          <div class="ongoing-meta-top">
+            <strong id="ongoing-job-name" class="ongoing-job-name">School Backpack Squad (1-Minute 60 FPS Reel)</strong>
+            <span id="ongoing-percent" class="ongoing-percent">15%</span>
+          </div>
+          
+          <div class="ongoing-progress-track">
+            <div class="ongoing-progress-fill" id="ongoing-progress-bar" style="width: 15%"></div>
+          </div>
+
+          <div class="ongoing-steps-bar">
+            <div class="step-chip active" id="step-tts">🎙️ Voice Synthesis</div>
+            <div class="step-chip" id="step-frames">🎨 3D Frames</div>
+            <div class="step-chip" id="step-bgm">🎵 BGM &amp; SFX</div>
+            <div class="step-chip" id="step-xfade">🎬 60 FPS Assembly</div>
+            <div class="step-chip" id="step-ready">✨ Ready</div>
+          </div>
+
+          <div class="ongoing-meta-row">
+            <span id="ongoing-status-text" class="ongoing-status-text">Synthesizing cartoon character dialogues &amp; audio balance...</span>
+            <div class="ongoing-actions">
+              <button type="button" class="button secondary small" id="ongoing-view-btn" data-go="pipeline">View Pipeline</button>
+              <button type="button" class="button primary small hidden" id="ongoing-review-btn">Review Video →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <section id="overview-view" class="view active">
         <div id="setup-banner" class="setup-banner hidden"><div><strong>Finish setup to activate your agents</strong><p>The operator console is ready, but generation and publishing stay disabled until credentials are configured.</p></div><code>npm run walkthrough</code></div>
         <div class="stats-grid">
