@@ -66,11 +66,14 @@ function formatDate(value, includeTime = true) {
   if (!value) return 'Not scheduled';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Not scheduled';
-  return new Intl.DateTimeFormat(undefined, {
+  const tz = ui.state?.profile?.timezone || 'Asia/Kolkata';
+  const isIST = tz === 'Asia/Kolkata' || !ui.state?.profile?.timezone;
+  const formatted = new Intl.DateTimeFormat('en-IN', {
     month: 'short', day: 'numeric',
-    ...(ui.state?.profile?.timezone ? { timeZone: ui.state.profile.timezone } : {}),
-    ...(includeTime ? { hour: 'numeric', minute: '2-digit' } : {})
+    timeZone: tz,
+    ...(includeTime ? { hour: '2-digit', minute: '2-digit', hour12: true } : {})
   }).format(date);
+  return includeTime ? `${formatted} ${isIST ? 'IST' : ''}`.trim() : formatted;
 }
 
 function timeAgo(value) {
@@ -1047,8 +1050,10 @@ function toLocalInput(value) {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  const offset = date.getTimezoneOffset() * 60000;
-  return escapeHTML(new Date(date.getTime() - offset).toISOString().slice(0, 16));
+  // Convert UTC date to Asia/Kolkata (IST = UTC + 5:30)
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const istDate = new Date(date.getTime() + istOffset);
+  return escapeHTML(istDate.toISOString().slice(0, 16));
 }
 
 function contentFormData() {

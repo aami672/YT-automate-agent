@@ -80,11 +80,11 @@ class Logger {
   }
 
   formatConsoleMessage(level, message, colorFunc) {
-    const timestamp = new Date().toLocaleTimeString();
+    const timestamp = new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true });
     const componentTag = chalk.cyan(`[${this.component}]`);
     const levelTag = colorFunc(`[${level}]`);
     
-    return `${chalk.gray(timestamp)} ${componentTag} ${levelTag} ${message}`;
+    return `${chalk.gray(timestamp + ' IST')} ${componentTag} ${levelTag} ${message}`;
   }
 
   // Method to create specialized loggers for different purposes
