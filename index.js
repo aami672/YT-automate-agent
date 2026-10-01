@@ -620,8 +620,16 @@ class YouTubeAutomationAgent {
     this.app.delete('/api/jobs/:jobId', protect, async (req, res) => {
       try {
         const { jobId } = req.params;
-        await this.db.executeQuery('DELETE FROM media_generation_tasks WHERE job_id = ?', [jobId]);
-        await this.db.executeQuery('DELETE FROM generation_checkpoints WHERE job_id = ?', [jobId]);
+        const job = await this.db.getGenerationJob(jobId);
+        const prodId = job?.production_id || job?.productionId;
+        await this.db.executeQuery('DELETE FROM media_generation_tasks WHERE job_id = ?', [jobId]).catch(() => {});
+        await this.db.executeQuery('DELETE FROM generation_checkpoints WHERE job_id = ?', [jobId]).catch(() => {});
+        await this.db.executeQuery("DELETE FROM notifications WHERE data LIKE ? OR message LIKE ?", [`%${jobId}%`, `%${jobId}%`]).catch(() => {});
+        await this.db.executeQuery("DELETE FROM automation_events WHERE data LIKE ?", [`%${jobId}%`]).catch(() => {});
+        if (prodId) {
+          await this.db.executeQuery("DELETE FROM notifications WHERE data LIKE ? OR message LIKE ?", [`%${prodId}%`, `%${prodId}%`]).catch(() => {});
+          await this.db.executeQuery("DELETE FROM automation_events WHERE data LIKE ?", [`%${prodId}%`]).catch(() => {});
+        }
         await this.db.executeQuery('DELETE FROM generation_jobs WHERE id = ?', [jobId]);
         return res.json({ success: true, message: `Job ${jobId} deleted` });
       } catch (error) {
@@ -896,6 +904,8 @@ class YouTubeAutomationAgent {
         await this.db.executeQuery('DELETE FROM content_reviews WHERE production_id = ?', [productionId]).catch(() => {});
         await this.db.executeQuery('DELETE FROM production_snapshots WHERE production_id = ?', [productionId]).catch(() => {});
         await this.db.executeQuery('DELETE FROM publish_schedule WHERE production_id = ?', [productionId]).catch(() => {});
+        await this.db.executeQuery("DELETE FROM notifications WHERE data LIKE ? OR message LIKE ?", [`%${productionId}%`, `%${productionId}%`]).catch(() => {});
+        await this.db.executeQuery("DELETE FROM automation_events WHERE data LIKE ?", [`%${productionId}%`]).catch(() => {});
         await this.db.executeQuery('DELETE FROM productions WHERE id = ?', [productionId]);
         return res.json({ success: true, message: `Production ${productionId} deleted` });
       } catch (error) {
@@ -915,6 +925,8 @@ class YouTubeAutomationAgent {
           await this.db.executeQuery('DELETE FROM content_reviews').catch(() => {});
           await this.db.executeQuery('DELETE FROM production_snapshots').catch(() => {});
           await this.db.executeQuery('DELETE FROM publish_schedule').catch(() => {});
+          await this.db.executeQuery('DELETE FROM notifications').catch(() => {});
+          await this.db.executeQuery('DELETE FROM automation_events').catch(() => {});
           await this.db.executeQuery('DELETE FROM productions').catch(() => {});
         } else {
           const rows = await this.db.fetchAll("SELECT id FROM productions WHERE status != 'published' OR status IS NULL");
@@ -928,10 +940,22 @@ class YouTubeAutomationAgent {
             await this.db.executeQuery('DELETE FROM content_reviews WHERE production_id = ?', [pId]).catch(() => {});
             await this.db.executeQuery('DELETE FROM production_snapshots WHERE production_id = ?', [pId]).catch(() => {});
             await this.db.executeQuery('DELETE FROM publish_schedule WHERE production_id = ?', [pId]).catch(() => {});
+            await this.db.executeQuery("DELETE FROM notifications WHERE data LIKE ? OR message LIKE ?", [`%${pId}%`, `%${pId}%`]).catch(() => {});
+            await this.db.executeQuery("DELETE FROM automation_events WHERE data LIKE ?", [`%${pId}%`]).catch(() => {});
             await this.db.executeQuery('DELETE FROM productions WHERE id = ?', [pId]).catch(() => {});
           }
         }
         return res.json({ success: true, message: 'Content cleared successfully' });
+      } catch (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    this.app.post('/api/activity/clear', protect, async (_req, res) => {
+      try {
+        await this.db.executeQuery('DELETE FROM notifications');
+        await this.db.executeQuery('DELETE FROM automation_events');
+        return res.json({ success: true, message: 'Recent activity cleared' });
       } catch (error) {
         return res.status(500).json({ success: false, error: error.message });
       }

@@ -1459,6 +1459,14 @@ document.addEventListener('click', async event => {
     return;
   }
 
+  const clearActivity = event.target.closest('#clear-activity-btn');
+  if (clearActivity) {
+    if (confirm('Clear all recent activity and notification logs?')) {
+      await mutate('/api/activity/clear', 'POST', {}, 'Recent activity cleared.').catch(() => {});
+    }
+    return;
+  }
+
   const cancel = event.target.closest('[data-cancel-job]');
   if (cancel && confirm('Cancel this generation job after its current stage?')) {
     await mutate(`/api/jobs/${encodeURIComponent(cancel.dataset.cancelJob)}/cancel`, 'POST', {}, 'Cancellation requested.').catch(() => {});
