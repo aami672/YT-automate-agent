@@ -159,10 +159,17 @@ function renderOngoingProcess(jobs = []) {
     banner.dataset.lastProdId = activeJob.production_id || activeJob.productionId;
   }
 
+  const activeJobs = jobs.filter(j => ['running', 'queued'].includes(j.status));
   const isPixar = activeJob.style === 'pixar_3d_animation' || (activeJob.topic && activeJob.topic.toLowerCase().includes('pixar'));
   const topicName = activeJob.topic || activeJob.title || (isPixar ? 'Pixar 3D Animated Story' : 'Video Generation');
-  $('#ongoing-title').textContent = `🎬 Generating: ${topicName}`;
-  $('#ongoing-job-name').textContent = topicName;
+  
+  if (activeJobs.length > 1) {
+    $('#ongoing-title').textContent = `🎬 Generating (${activeJobs.length} in Parallel): ${topicName}`;
+    $('#ongoing-job-name').textContent = activeJobs.map(j => j.topic || j.title || 'Video').join(' ⚡ ');
+  } else {
+    $('#ongoing-title').textContent = `🎬 Generating: ${topicName}`;
+    $('#ongoing-job-name').textContent = topicName;
+  }
 
   if (!activeJobStart) {
     const parsed = parseUTC(activeJob.created_at);
