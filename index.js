@@ -617,6 +617,44 @@ class YouTubeAutomationAgent {
       return res.json({ success: true, result: updated });
     });
 
+    this.app.delete('/api/jobs/:jobId', protect, async (req, res) => {
+      try {
+        const { jobId } = req.params;
+        await this.db.executeQuery('DELETE FROM media_generation_tasks WHERE job_id = ?', [jobId]);
+        await this.db.executeQuery('DELETE FROM generation_checkpoints WHERE job_id = ?', [jobId]);
+        await this.db.executeQuery('DELETE FROM generation_jobs WHERE id = ?', [jobId]);
+        return res.json({ success: true, message: `Job ${jobId} deleted` });
+      } catch (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    this.app.post('/api/jobs/clear', protect, async (req, res) => {
+      try {
+        const mode = req.body?.mode || 'finished';
+        if (mode === 'all') {
+          await this.db.executeQuery('DELETE FROM media_generation_tasks');
+          await this.db.executeQuery('DELETE FROM generation_checkpoints');
+          await this.db.executeQuery('DELETE FROM generation_jobs');
+        } else {
+          await this.db.executeQuery(`
+            DELETE FROM media_generation_tasks WHERE job_id IN (
+              SELECT id FROM generation_jobs WHERE status IN ('completed', 'failed', 'interrupted', 'cancelled')
+            )
+          `);
+          await this.db.executeQuery(`
+            DELETE FROM generation_checkpoints WHERE job_id IN (
+              SELECT id FROM generation_jobs WHERE status IN ('completed', 'failed', 'interrupted', 'cancelled')
+            )
+          `);
+          await this.db.executeQuery("DELETE FROM generation_jobs WHERE status IN ('completed', 'failed', 'interrupted', 'cancelled')");
+        }
+        return res.json({ success: true, message: 'Jobs cleared successfully' });
+      } catch (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
     this.app.get('/api/content/:productionId', async (req, res) => {
       let bundle = await this.db.getProductionBundle(req.params.productionId);
       if (!bundle) return res.status(404).json({ error: 'Content not found' });
@@ -847,6 +885,58 @@ class YouTubeAutomationAgent {
       return res.json({ success: true });
     });
 
+    this.app.delete('/api/content/:productionId', protect, async (req, res) => {
+      try {
+        const { productionId } = req.params;
+        await this.db.executeQuery('DELETE FROM content_provenance WHERE production_id = ?', [productionId]).catch(() => {});
+        await this.db.executeQuery('DELETE FROM discoverability_findings WHERE production_id = ?', [productionId]).catch(() => {});
+        await this.db.executeQuery('DELETE FROM discoverability_audits WHERE production_id = ?', [productionId]).catch(() => {});
+        await this.db.executeQuery('DELETE FROM production_scene_revisions WHERE production_id = ?', [productionId]).catch(() => {});
+        await this.db.executeQuery('DELETE FROM production_scenes WHERE production_id = ?', [productionId]).catch(() => {});
+        await this.db.executeQuery('DELETE FROM content_reviews WHERE production_id = ?', [productionId]).catch(() => {});
+        await this.db.executeQuery('DELETE FROM production_snapshots WHERE production_id = ?', [productionId]).catch(() => {});
+        await this.db.executeQuery('DELETE FROM publish_schedule WHERE production_id = ?', [productionId]).catch(() => {});
+        await this.db.executeQuery('DELETE FROM productions WHERE id = ?', [productionId]);
+        return res.json({ success: true, message: `Production ${productionId} deleted` });
+      } catch (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    this.app.post('/api/content/clear', protect, async (req, res) => {
+      try {
+        const mode = req.body?.mode || 'non-published';
+        if (mode === 'all') {
+          await this.db.executeQuery('DELETE FROM content_provenance').catch(() => {});
+          await this.db.executeQuery('DELETE FROM discoverability_findings').catch(() => {});
+          await this.db.executeQuery('DELETE FROM discoverability_audits').catch(() => {});
+          await this.db.executeQuery('DELETE FROM production_scene_revisions').catch(() => {});
+          await this.db.executeQuery('DELETE FROM production_scenes').catch(() => {});
+          await this.db.executeQuery('DELETE FROM content_reviews').catch(() => {});
+          await this.db.executeQuery('DELETE FROM production_snapshots').catch(() => {});
+          await this.db.executeQuery('DELETE FROM publish_schedule').catch(() => {});
+          await this.db.executeQuery('DELETE FROM productions').catch(() => {});
+        } else {
+          const rows = await this.db.fetchAll("SELECT id FROM productions WHERE status != 'published' OR status IS NULL");
+          for (const row of rows) {
+            const pId = row.id;
+            await this.db.executeQuery('DELETE FROM content_provenance WHERE production_id = ?', [pId]).catch(() => {});
+            await this.db.executeQuery('DELETE FROM discoverability_findings WHERE production_id = ?', [pId]).catch(() => {});
+            await this.db.executeQuery('DELETE FROM discoverability_audits WHERE production_id = ?', [pId]).catch(() => {});
+            await this.db.executeQuery('DELETE FROM production_scene_revisions WHERE production_id = ?', [pId]).catch(() => {});
+            await this.db.executeQuery('DELETE FROM production_scenes WHERE production_id = ?', [pId]).catch(() => {});
+            await this.db.executeQuery('DELETE FROM content_reviews WHERE production_id = ?', [pId]).catch(() => {});
+            await this.db.executeQuery('DELETE FROM production_snapshots WHERE production_id = ?', [pId]).catch(() => {});
+            await this.db.executeQuery('DELETE FROM publish_schedule WHERE production_id = ?', [pId]).catch(() => {});
+            await this.db.executeQuery('DELETE FROM productions WHERE id = ?', [pId]).catch(() => {});
+          }
+        }
+        return res.json({ success: true, message: 'Content cleared successfully' });
+      } catch (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
     this.app.post('/api/content/:productionId/retry', protect, async (req, res) => {
       const bundle = await this.db.getProductionBundle(req.params.productionId);
       if (!bundle) return res.status(404).json({ error: 'Content not found' });
@@ -863,11 +953,22 @@ class YouTubeAutomationAgent {
       try {
         const bundle = await this.db.getProductionBundle(req.params.productionId);
         if (!bundle) return res.status(404).json({ error: 'Content not found' });
+        const videoPath = typeof bundle.assets?.finalVideo === 'string'
+          ? bundle.assets.finalVideo
+          : bundle.assets?.finalVideo?.path || bundle.assets?.videoPath || bundle.assets?.video?.path || null;
+        const thumbnailPath = typeof bundle.assets?.thumbnail === 'string'
+          ? bundle.assets.thumbnail
+          : bundle.assets?.thumbnail?.path || null;
+        const captionsPath = typeof bundle.assets?.captions === 'string'
+          ? bundle.assets.captions
+          : bundle.assets?.captions?.path || null;
+        const scriptPath = bundle.assets?.script?.originalPath || null;
+
         const allowed = {
-          video: bundle.assets?.finalVideo?.path,
-          thumbnail: bundle.assets?.thumbnail?.path,
-          captions: bundle.assets?.captions?.path,
-          script: bundle.assets?.script?.originalPath
+          video: videoPath,
+          thumbnail: thumbnailPath,
+          captions: captionsPath,
+          script: scriptPath
         };
         const experimentMatch = req.params.kind.match(/^experiment-thumbnail-(\d+)$/);
         const experimentPath = experimentMatch
@@ -881,7 +982,38 @@ class YouTubeAutomationAgent {
         const allowedPath = [dataRoot, experimentRoot]
           .some(root => resolved.startsWith(`${root}${path.sep}`));
         if (!allowedPath) return res.status(403).json({ error: 'Asset path is not allowed' });
-        await fs.access(resolved);
+        
+        const stat = await fs.stat(resolved);
+        
+        // Video Range Request Streaming for instant browser seeking & smooth playback
+        if (req.params.kind === 'video') {
+          const range = req.headers.range;
+          const fileSize = stat.size;
+          if (range) {
+            const parts = range.replace(/bytes=/, '').split('-');
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+            const chunksize = (end - start) + 1;
+            const fileStream = require('fs').createReadStream(resolved, { start, end });
+            const head = {
+              'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+              'Accept-Ranges': 'bytes',
+              'Content-Length': chunksize,
+              'Content-Type': 'video/mp4'
+            };
+            res.writeHead(206, head);
+            return fileStream.pipe(res);
+          } else {
+            const head = {
+              'Content-Length': fileSize,
+              'Content-Type': 'video/mp4',
+              'Accept-Ranges': 'bytes'
+            };
+            res.writeHead(200, head);
+            return require('fs').createReadStream(resolved).pipe(res);
+          }
+        }
+        
         return res.sendFile(resolved);
       } catch (_error) {
         return res.status(404).json({ error: 'Asset not found' });
@@ -1803,13 +1935,13 @@ class YouTubeAutomationAgent {
         }
       })),
       assetUrls: {
-        video: bundle.assets?.finalVideo?.path && !bundle.assets?.finalVideo?.simulated ? `/api/content/${bundle.id}/asset/video` : null,
-        thumbnail: bundle.assets?.thumbnail?.path ? `/api/content/${bundle.id}/asset/thumbnail` : null,
+        video: (typeof bundle.assets?.finalVideo === 'string' ? Boolean(bundle.assets.finalVideo) : (bundle.assets?.finalVideo?.path && !bundle.assets?.finalVideo?.simulated) || Boolean(bundle.assets?.videoPath) || Boolean(bundle.assets?.video?.path)) ? `/api/content/${bundle.id}/asset/video` : null,
+        thumbnail: bundle.assets?.thumbnail?.path || typeof bundle.assets?.thumbnail === 'string' ? `/api/content/${bundle.id}/asset/thumbnail` : null,
         experimentThumbnails: (experiment?.thumbnailVariants || []).map((_variant, index) =>
           `/api/content/${bundle.id}/asset/experiment-thumbnail-${index}`
         ),
-        captions: bundle.assets?.captions?.path ? `/api/content/${bundle.id}/asset/captions` : null,
-        script: bundle.assets?.script?.originalPath ? `/api/content/${bundle.id}/asset/script` : null
+        captions: bundle.assets?.captions?.path || typeof bundle.assets?.captions === 'string' ? `/api/content/${bundle.id}/asset/captions` : null,
+        script: bundle.assets?.script?.originalPath || typeof bundle.assets?.script === 'string' ? `/api/content/${bundle.id}/asset/script` : null
       }
     };
   }

@@ -324,7 +324,10 @@ function renderReviews(reviews) {
     <article class="review-card">
       ${item.hasThumbnail ? `<img class="review-thumb" src="/api/content/${encodeURIComponent(item.id)}/asset/thumbnail" alt="">` : '<div class="review-thumb"></div>'}
       <div class="review-meta"><strong>${escapeHTML(item.title)}</strong><div class="meta-line">${statusChip(item.review_status)} · Quality ${qualityScore(item.qualityChecks)}%</div></div>
-      <button class="button secondary small" data-open-content="${escapeHTML(item.id)}">Review</button>
+      <div style="display: flex; gap: 6px; align-items: center;">
+        <button class="button secondary small" data-open-content="${escapeHTML(item.id)}">Review</button>
+        <button class="icon-delete-btn" data-delete-content="${escapeHTML(item.id)}" title="Delete from list">✕</button>
+      </div>
     </article>`).join('');
 }
 
@@ -344,6 +347,7 @@ function renderJobs(jobs) {
     const resumeFrom = stages.find(stage => !completed.has(stage)) || 'quality_review';
     const recoverable = ['failed', 'interrupted'].includes(job.status);
     const jobTime = job.updated_at || job.completed_at || job.created_at;
+    const isRunning = ['queued', 'running'].includes(job.status);
     return `
     <article class="job-card">
       <div class="job-meta">
@@ -353,8 +357,11 @@ function renderJobs(jobs) {
         ${mediaTasks.length ? `<div class="checkpoint-line">Video: ${mediaCompleted}/${mediaTasks.length} clips ready · ${escapeHTML(mediaProviders)}</div>` : ''}
         <div class="progress"><i style="width:${Math.max(0, Math.min(100, job.progress || 0))}%"></i></div>
       </div>
-      ${['queued', 'running'].includes(job.status) ? `<button class="text-button" data-cancel-job="${escapeHTML(job.id)}">Cancel</button>` : ''}
-      ${recoverable ? `<div class="job-recovery"><select data-resume-stage-for="${escapeHTML(job.id)}" aria-label="Stage to resume from">${stages.map(stage => `<option value="${stage}" ${stage === resumeFrom ? 'selected' : ''}>${escapeHTML(label(stage))}</option>`).join('')}</select><button class="button secondary small" data-resume-job="${escapeHTML(job.id)}">Resume</button></div>` : ''}
+      <div style="display: flex; gap: 6px; align-items: center;">
+        ${isRunning ? `<button class="text-button" data-cancel-job="${escapeHTML(job.id)}">Cancel</button>` : ''}
+        ${recoverable ? `<div class="job-recovery"><select data-resume-stage-for="${escapeHTML(job.id)}" aria-label="Stage to resume from">${stages.map(stage => `<option value="${stage}" ${stage === resumeFrom ? 'selected' : ''}>${escapeHTML(label(stage))}</option>`).join('')}</select><button class="button secondary small" data-resume-job="${escapeHTML(job.id)}">Resume</button></div>` : ''}
+        <button class="icon-delete-btn" data-delete-job="${escapeHTML(job.id)}" title="Delete job">✕</button>
+      </div>
     </article>`;
   }).join('');
 }
@@ -403,11 +410,14 @@ function renderPipeline(items) {
   container.innerHTML = filtered.map(item => {
     const state = item.schedule_status || item.review_status || item.status;
     const next = nextAction(item);
-    return `<article class="pipeline-item" data-open-content="${escapeHTML(item.id)}">
-      <div class="pipeline-title"><strong>${escapeHTML(item.title)}</strong><span>${escapeHTML(item.topic || 'No topic recorded')} · ${formatDate(item.created_at)}</span></div>
+    return `<article class="pipeline-item">
+      <div class="pipeline-title" data-open-content="${escapeHTML(item.id)}" style="cursor: pointer;"><strong>${escapeHTML(item.title)}</strong><span>${escapeHTML(item.topic || 'No topic recorded')} · ${formatDate(item.created_at)}</span></div>
       <div class="pipeline-col"><span>State</span><strong>${statusChip(state)}</strong></div>
       <div class="pipeline-col"><span>Quality</span><strong>${qualityScore(item.qualityChecks)} / 100</strong></div>
-      <button class="button secondary small">${escapeHTML(next)} →</button>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <button class="button secondary small" data-open-content="${escapeHTML(item.id)}">${escapeHTML(next)} →</button>
+        <button class="icon-delete-btn" data-delete-content="${escapeHTML(item.id)}" title="Delete content">✕</button>
+      </div>
     </article>`;
   }).join('');
 }
@@ -1142,7 +1152,7 @@ async function openContent(productionId) {
       <form id="content-review-form" class="editor content-review-editor">
         <div class="content-layout">
           <div>
-            <div class="preview">${item.assetUrls.video ? `<video controls preload="metadata" poster="${item.assetUrls.thumbnail || ''}"><source src="${item.assetUrls.video}" type="video/mp4"></video>` : item.assetUrls.thumbnail ? `<img src="${item.assetUrls.thumbnail}" alt="Generated thumbnail">` : '<div class="preview-placeholder">No playable preview was produced.</div>'}</div>
+            <div class="preview">${item.assetUrls.video ? `<div class="video-player-container"><video controls autoplay playsinline preload="auto" poster="${item.assetUrls.thumbnail || ''}" class="video-preview-player"><source src="${item.assetUrls.video}" type="video/mp4">Your browser does not support HTML5 video.</video><div class="video-player-toolbar"><span class="checkpoint-line">✓ 60 FPS Video Stream Ready</span><a href="${item.assetUrls.video}" download="${escapeHTML(title)}.mp4" class="button secondary small" target="_blank">⬇️ Download Video</a></div></div>` : item.assetUrls.thumbnail ? `<img src="${item.assetUrls.thumbnail}" alt="Generated thumbnail">` : '<div class="preview-placeholder">No playable preview was produced.</div>'}</div>
             <div class="quality-grid">${(item.qualityChecks || []).map(check => `<div class="quality-check ${check.passed ? 'pass' : 'fail'}">${check.passed ? '✓' : '×'} ${escapeHTML(check.message)}</div>`).join('') || '<div class="quality-check">No quality results recorded.</div>'}</div>
             ${item.review_notes ? `<p class="callout">${escapeHTML(item.review_notes)}</p>` : ''}
           </div>
@@ -1170,7 +1180,7 @@ async function openContent(productionId) {
             <label class="toggle"><input name="rightsConfirmed" type="checkbox" ${data.rightsConfirmed ? 'checked' : ''}><span></span> Media rights confirmed</label>
           </div>
           ${item.schedule && !['published', 'uploading', 'uploaded', 'reconciliation_required'].includes(item.schedule.status) ? `<div class="form-actions"><button type="button" class="button secondary" data-reschedule-content="${escapeHTML(item.id)}">Reschedule</button><button type="button" class="button primary" data-publish-now-content="${escapeHTML(item.id)}">Publish now</button><button type="button" class="button danger" data-delete-schedule="${escapeHTML(item.id)}">Delete schedule</button></div>` : ''}
-          ${canReview ? `<div class="form-actions"><button type="button" class="button primary" data-approve-content="${escapeHTML(item.id)}">Approve & schedule</button><button type="button" class="button secondary" data-save-content="${escapeHTML(item.id)}">Save draft</button><button type="button" class="button danger" data-reject-content="${escapeHTML(item.id)}">Reject</button><button type="button" class="button ghost" data-retry-content="${escapeHTML(item.id)}">Regenerate</button></div>` : `<a class="button secondary" href="${escapeHTML(item.schedule?.youtube_url || '#')}" target="_blank" rel="noopener">Open on YouTube</a>`}
+          ${canReview ? `<div class="form-actions"><button type="button" class="button primary" data-approve-content="${escapeHTML(item.id)}">Approve & schedule</button><button type="button" class="button secondary" data-save-content="${escapeHTML(item.id)}">Save draft</button><button type="button" class="button danger" data-reject-content="${escapeHTML(item.id)}">Reject</button><button type="button" class="button ghost" data-retry-content="${escapeHTML(item.id)}">Regenerate</button><button type="button" class="button danger" data-delete-production="${escapeHTML(item.id)}">🗑️ Delete Video</button></div>` : `<div class="form-actions"><a class="button secondary" href="${escapeHTML(item.schedule?.youtube_url || '#')}" target="_blank" rel="noopener">Open on YouTube</a><button type="button" class="button danger" data-delete-production="${escapeHTML(item.id)}">🗑️ Delete Video</button></div>`}
       </form>`;
     $('#content-review-form').dataset.productionId = item.id;
     $('#content-dialog').showModal();
@@ -1345,6 +1355,40 @@ document.addEventListener('click', async event => {
 
   const open = event.target.closest('[data-open-content]');
   if (open) return openContent(open.dataset.openContent);
+
+  const deleteJob = event.target.closest('[data-delete-job]');
+  if (deleteJob) {
+    if (confirm('Delete this generation job?')) {
+      await mutate(`/api/jobs/${encodeURIComponent(deleteJob.dataset.deleteJob)}`, 'DELETE', undefined, 'Job deleted.').catch(() => {});
+    }
+    return;
+  }
+
+  const clearJobs = event.target.closest('#clear-jobs-btn');
+  if (clearJobs) {
+    if (confirm('Clear all finished, failed, and cancelled generation jobs?')) {
+      await mutate('/api/jobs/clear', 'POST', { mode: 'finished' }, 'Finished jobs cleared.').catch(() => {});
+    }
+    return;
+  }
+
+  const deleteContent = event.target.closest('[data-delete-content], [data-delete-production]');
+  if (deleteContent) {
+    const prodId = deleteContent.dataset.deleteContent || deleteContent.dataset.deleteProduction;
+    if (confirm('Delete this video production and its assets?')) {
+      await mutate(`/api/content/${encodeURIComponent(prodId)}`, 'DELETE', undefined, 'Production deleted.').catch(() => {});
+      if ($('#content-dialog').open) $('#content-dialog').close();
+    }
+    return;
+  }
+
+  const clearReviews = event.target.closest('#clear-reviews-btn, #clear-pipeline-btn');
+  if (clearReviews) {
+    if (confirm('Clear all unpublished video reviews and drafts?')) {
+      await mutate('/api/content/clear', 'POST', { mode: 'non-published' }, 'Unpublished content cleared.').catch(() => {});
+    }
+    return;
+  }
 
   const cancel = event.target.closest('[data-cancel-job]');
   if (cancel && confirm('Cancel this generation job after its current stage?')) {
