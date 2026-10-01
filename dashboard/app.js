@@ -1159,10 +1159,14 @@ async function openContent(productionId) {
     const voiceTone = data.voiceTone || item.strategy?.voiceTone || 'hindi_cartoon';
     const scriptTheme = data.scriptTheme || item.strategy?.scriptTheme || 'comedy';
 
+    const localPath = item.localVideoPath || `data/videos/${item.id}_final.mp4`;
+    const videoUrl = item.assetUrls.video || `/api/content/${item.id}/asset/video`;
+    const thumbUrl = item.assetUrls.thumbnail || `/api/content/${item.id}/asset/thumbnail`;
+
     $('#content-detail').innerHTML = `
       <div class="dialog-heading">
         <div>
-          <p class="eyebrow">VIDEO PRODUCTION REVIEW</p>
+          <p class="eyebrow">VIDEO PRODUCTION REVIEW STUDIO</p>
           <h2>${escapeHTML(title)}</h2>
           <div class="meta-line">${statusChip(item.schedule?.status || item.review_status || item.status)} · Full Video Production</div>
         </div>
@@ -1174,19 +1178,27 @@ async function openContent(productionId) {
         <div class="review-main-grid">
           <div class="review-video-col">
             <div class="preview">
-              ${item.assetUrls.video 
-                ? `<div class="video-player-container">
-                    <video controls autoplay playsinline preload="auto" poster="${item.assetUrls.thumbnail || ''}" class="video-preview-player">
-                      <source src="${item.assetUrls.video}" type="video/mp4">
-                    </video>
-                    <div class="video-player-toolbar">
-                      <span class="checkpoint-line">✓ 60 FPS Master Video</span>
-                      <a href="${item.assetUrls.video}" download="${escapeHTML(title)}.mp4" class="button secondary small" target="_blank">⬇️ Download Video</a>
-                    </div>
-                  </div>`
-                : item.assetUrls.thumbnail 
-                  ? `<img src="${item.assetUrls.thumbnail}" alt="Generated thumbnail">` 
-                  : '<div class="preview-placeholder">No playable preview was produced.</div>'}
+              <div class="video-player-container">
+                <video controls autoplay playsinline preload="auto" poster="${thumbUrl}" class="video-preview-player">
+                  <source src="${videoUrl}" type="video/mp4">
+                  Your browser does not support HTML5 video playback.
+                </video>
+                <div class="video-player-toolbar">
+                  <span class="checkpoint-line">✓ 60 FPS Video Output</span>
+                  <a href="${videoUrl}" download="${escapeHTML(title)}.mp4" class="button secondary small" target="_blank">⬇️ Download MP4</a>
+                </div>
+              </div>
+            </div>
+
+            <!-- Local Output Folder Bar -->
+            <div class="local-output-bar">
+              <div class="local-output-info">
+                <span class="local-output-label">📁 Local Output:</span>
+                <code class="local-output-path" title="${escapeHTML(localPath)}">${escapeHTML(localPath)}</code>
+              </div>
+              <div class="local-output-buttons">
+                <button type="button" class="button secondary small" data-open-folder="${escapeHTML(item.id)}" title="Open file location in Windows File Explorer">📂 Open in Folder</button>
+              </div>
             </div>
           </div>
 
@@ -1802,6 +1814,18 @@ document.addEventListener('click', async event => {
   if (saveProvenance) {
     const productionId = $('#content-review-form')?.dataset.productionId;
     if (productionId) await persistProvenance(productionId, 'Evidence review saved.').catch(() => {});
+    return;
+  }
+
+  const openFolder = event.target.closest('[data-open-folder]');
+  if (openFolder) {
+    const prodId = openFolder.dataset.openFolder;
+    try {
+      const res = await api(`/api/content/${encodeURIComponent(prodId)}/open-folder`, { method: 'POST' });
+      showToast(`📂 Opened folder in File Explorer: ${res.path || 'videos'}`);
+    } catch (_err) {
+      showToast('Output directory: data/videos', 'info');
+    }
     return;
   }
 

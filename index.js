@@ -992,6 +992,25 @@ class YouTubeAutomationAgent {
       return res.status(202).json({ success: true, result: job });
     });
 
+    this.app.post('/api/content/:productionId/open-folder', protect, async (req, res) => {
+      try {
+        const bundle = await this.db.getProductionBundle(req.params.productionId);
+        const videoPath = (typeof bundle?.assets?.finalVideo === 'string' ? bundle.assets.finalVideo : bundle?.assets?.finalVideo?.path) || bundle?.assets?.videoPath;
+        const { exec } = require('child_process');
+        const videosDir = path.resolve(__dirname, 'data', 'videos');
+        if (videoPath && require('fs').existsSync(path.resolve(videoPath))) {
+          const abs = path.resolve(videoPath);
+          exec(`explorer.exe /select,"${abs}"`);
+          return res.json({ success: true, path: abs });
+        } else {
+          exec(`explorer.exe "${videosDir}"`);
+          return res.json({ success: true, path: videosDir });
+        }
+      } catch (err) {
+        return res.status(500).json({ success: false, error: err.message });
+      }
+    });
+
     this.app.get('/api/content/:productionId/asset/:kind', async (req, res) => {
       try {
         const bundle = await this.db.getProductionBundle(req.params.productionId);
@@ -999,13 +1018,43 @@ class YouTubeAutomationAgent {
         const videoPath = typeof bundle.assets?.finalVideo === 'string'
           ? bundle.assets.finalVideo
           : bundle.assets?.finalVideo?.path || bundle.assets?.videoPath || bundle.assets?.video?.path || null;
-        const thumbnailPath = typeof bundle.assets?.thumbnail === 'string'
+        let thumbnailPath = typeof bundle.assets?.thumbnail === 'string'
           ? bundle.assets.thumbnail
-          : bundle.assets?.thumbnail?.path || null;
+          : bundle.assets?.thumbnail?.path || bundle.thumbnail?.path || bundle.assets?.thumbnailPath || null;
         const captionsPath = typeof bundle.assets?.captions === 'string'
           ? bundle.assets.captions
           : bundle.assets?.captions?.path || null;
         const scriptPath = bundle.assets?.script?.originalPath || null;
+
+        if (req.params.kind === 'thumbnail') {
+          let exists = false;
+          try {
+            if (thumbnailPath) {
+              await fs.access(path.resolve(thumbnailPath));
+              exists = true;
+            }
+          } catch (_e) { exists = false; }
+
+          if (!exists) {
+            const assetsDir = path.resolve(__dirname, 'data', 'assets');
+            const files = await fs.readdir(assetsDir).catch(() => []);
+            const matched = files.find(f => (f.includes(req.params.productionId) || f.startsWith('pixar_thumb_') || f.startsWith('pixar_')) && (f.endsWith('.jpg') || f.endsWith('.png')));
+            if (matched) {
+              thumbnailPath = path.join(assetsDir, matched);
+            } else if (videoPath && require('fs').existsSync(path.resolve(videoPath))) {
+              try {
+                const { getFFmpegPath } = require('./utils/ffmpeg');
+                const ffmpegBin = getFFmpegPath();
+                const extractedThumb = path.join(assetsDir, `${req.params.productionId}_thumb.jpg`);
+                const { spawnSync } = require('child_process');
+                spawnSync(ffmpegBin, ['-y', '-ss', '00:00:01.00', '-i', path.resolve(videoPath), '-vframes', '1', '-q:v', '2', extractedThumb]);
+                if (require('fs').existsSync(extractedThumb)) {
+                  thumbnailPath = extractedThumb;
+                }
+              } catch (_err) {}
+            }
+          }
+        }
 
         const allowed = {
           video: videoPath,
@@ -1997,9 +2046,12 @@ class YouTubeAutomationAgent {
           captions: clip.captionsPath ? `/api/content/${bundle.id}/shorts/${clip.id}/asset/captions` : null
         }
       })),
+      localVideoPath: (typeof bundle.assets?.finalVideo === 'string' ? bundle.assets.finalVideo : bundle.assets?.finalVideo?.path) || bundle.assets?.videoPath || bundle.assets?.video?.path || null,
+      outputDirectory: path.resolve(__dirname, 'data', 'videos'),
+      hasThumbnail: Boolean(bundle.assets?.thumbnail?.path || typeof bundle.assets?.thumbnail === 'string' || bundle.thumbnail?.path || bundle.assets?.finalVideo),
       assetUrls: {
         video: (typeof bundle.assets?.finalVideo === 'string' ? Boolean(bundle.assets.finalVideo) : (bundle.assets?.finalVideo?.path && !bundle.assets?.finalVideo?.simulated) || Boolean(bundle.assets?.videoPath) || Boolean(bundle.assets?.video?.path)) ? `/api/content/${bundle.id}/asset/video` : null,
-        thumbnail: bundle.assets?.thumbnail?.path || typeof bundle.assets?.thumbnail === 'string' ? `/api/content/${bundle.id}/asset/thumbnail` : null,
+        thumbnail: `/api/content/${bundle.id}/asset/thumbnail`,
         experimentThumbnails: (experiment?.thumbnailVariants || []).map((_variant, index) =>
           `/api/content/${bundle.id}/asset/experiment-thumbnail-${index}`
         ),
