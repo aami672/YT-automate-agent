@@ -159,8 +159,9 @@ function renderOngoingProcess(jobs = []) {
   }
 
   const isPixar = activeJob.style === 'pixar_3d_animation' || (activeJob.topic && activeJob.topic.toLowerCase().includes('pixar'));
-  $('#ongoing-title').textContent = isPixar ? '🎬 3D Pixar Reel Generation In Progress...' : '⚡ Video Generation Active...';
-  $('#ongoing-job-name').textContent = activeJob.title || activeJob.topic || '3D Animated Story';
+  const topicName = activeJob.topic || activeJob.title || (isPixar ? 'Pixar 3D Animated Story' : 'Video Generation');
+  $('#ongoing-title').textContent = `🎬 Generating: ${topicName}`;
+  $('#ongoing-job-name').textContent = topicName;
 
   if (!activeJobStart) {
     const parsed = parseUTC(activeJob.created_at);
@@ -2004,6 +2005,10 @@ if (shuffleBtn) {
           scriptInput.value = formattedScript;
           scriptInput.focus();
         }
+        const titleInput = $('#pixar-title-input');
+        if (titleInput && res.title) {
+          titleInput.value = res.title;
+        }
         showToast(`🎲 Loaded: "${res.title}" (${res.storyboard.length} scenes)`);
       }
     } catch (err) {
@@ -2023,11 +2028,13 @@ $('#generate-form').addEventListener('submit', async event => {
 
   try {
     if (currentGeneratorMode === 'pixar') {
+      const title = $('#pixar-title-input')?.value?.trim() || values.pixarTitle?.trim() || null;
       const scriptText = $('#pixar-script-input')?.value?.trim() || values.pixarScript || '';
       const duration = values.pixarDuration || '1min';
       const language = values.pixarLanguage || 'hindi';
 
       await mutate('/api/pixar/generate', 'POST', {
+        title,
         scriptText,
         duration,
         language

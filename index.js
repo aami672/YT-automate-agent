@@ -1522,14 +1522,34 @@ class YouTubeAutomationAgent {
     }
 
     const duration = input.duration || '1min';
+    let topicTitle = (input.title || '').trim();
+    if (!topicTitle && input.presetKey) {
+      try {
+        const { STORY_PRESETS } = require('./utils/pixar-engine/storyboard-templates');
+        topicTitle = STORY_PRESETS[input.presetKey]?.title || '';
+      } catch (_e) {}
+    }
+    if (!topicTitle && input.scriptText) {
+      const firstLine = input.scriptText.split('\n')[0].replace(/^Title:\s*/i, '').trim();
+      if (firstLine.length > 3 && firstLine.length < 90 && !firstLine.includes(':')) {
+        topicTitle = firstLine;
+      } else if (firstLine.includes(':')) {
+        const char = firstLine.split(':')[0].trim();
+        topicTitle = `${char}'s 3D Animated Story`;
+      }
+    }
+    if (!topicTitle) {
+      topicTitle = `3D Animated Story (${duration})`;
+    }
+
     const job = await this.db.createGenerationJob({
-      topic: input.title || `Pixar 3D Animated Story (${duration})`,
+      topic: topicTitle,
       style: 'pixar_3d_animation',
       length: duration,
       source: input.source || 'pixar_ui'
     });
 
-    const work = this.runPixarGenerationJob(job.id, input)
+    const work = this.runPixarGenerationJob(job.id, { ...input, title: topicTitle })
       .catch(error => this.logger.error(`Pixar generation job ${job.id} failed:`, error))
       .finally(() => this.activeJobs.delete(job.id));
     this.activeJobs.set(job.id, work);
