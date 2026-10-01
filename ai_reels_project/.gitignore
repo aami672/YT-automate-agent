@@ -1,0 +1,37 @@
+# Git Ignore for AI Reels Project
+
+# Node dependencies
+node_modules/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+
+# Exclude media assets & outputs
+assets/
+audio_tracks/
+output/
+scene_clips/
+scene_clips_v3/
+extracted_frames/
+extracted_perfect_frames/
+
+# Media & Temp files
+*.mp4
+*.mp3
+*.wav
+*.ogg
+*.jpg
+*.jpeg
+*.png
+*.tmp
+*.temp
+*.srt
+*.ass
+
+# OS metadata
+.DS_Store
+Thumbs.db
