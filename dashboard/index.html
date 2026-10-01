@@ -286,16 +286,83 @@
     </main>
   </div>
 
-  <dialog id="generate-dialog" class="dialog">
+  <dialog id="generate-dialog" class="dialog pixar-dialog">
     <form id="generate-form" method="dialog">
-      <div class="dialog-heading"><div><p class="eyebrow">NEW GENERATION JOB</p><h2>Create a video</h2></div><button type="button" class="close-button" data-close>×</button></div>
-      <label><span>Topic <small>optional—leave blank for agent selection</small></span><input name="topic" maxlength="200" placeholder="How small teams can automate repetitive work"></label>
-      <div class="form-grid two">
-        <label><span>Format</span><select name="style"><option value="explainer">Explainer</option><option value="tutorial">Tutorial</option><option value="list">List</option><option value="review">Review</option><option value="story">Story</option></select></label>
-        <label><span>Length</span><select name="length"><option value="short">Short · 2–4 min</option><option value="medium" selected>Medium · 8–12 min</option><option value="long">Long · 15–20 min</option></select></label>
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">UNIVERSAL 3D ANIMATION STUDIO</p>
+          <h2>Create Pixar 3D Animated Video</h2>
+        </div>
+        <button type="button" class="close-button" data-close>×</button>
       </div>
-      <p class="callout">Generation runs in the background. You can follow each stage and cancel between stages.</p>
-      <div class="form-actions"><button type="submit" class="button primary">Start generation</button><button type="button" class="button ghost" data-close>Cancel</button></div>
+
+      <!-- Mode Selector -->
+      <div class="generator-mode-tabs">
+        <button type="button" class="mode-tab active" id="tab-pixar-mode">🎬 Pixar 3D Animated Reel</button>
+        <button type="button" class="mode-tab" id="tab-standard-mode">📹 Standard Explainer Video</button>
+      </div>
+
+      <!-- Pixar 3D Controls -->
+      <div id="pixar-generator-section">
+        <div class="form-grid two">
+          <label>
+            <span>Video Duration</span>
+            <select name="pixarDuration" id="pixar-duration-select">
+              <option value="1min" selected>⏱️ 1-Minute Reel (~60s · 6 Scenes)</option>
+              <option value="2min">⏱️ 2-Minute Story (~120s · 12 Scenes)</option>
+              <option value="3min">⏱️ 3-Minute Mini Movie (~180s · 18 Scenes)</option>
+            </select>
+          </label>
+          <label>
+            <span>Cartoon Voice Cast</span>
+            <select name="pixarLanguage" id="pixar-language-select">
+              <option value="hindi" selected>🇮🇳 Hindi Cartoon (Madhur, Swara, Squeaky, Deep)</option>
+              <option value="english">🇺🇸 English Cartoon (Christopher, Jenny, Guy, Ana)</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="script-toolbar">
+          <div class="script-toolbar-left">
+            <span><strong>Script / Storyboard Input</strong> <small>(Type, paste, or auto-shuffle)</small></span>
+          </div>
+          <div class="script-toolbar-right">
+            <button type="button" id="shuffle-script-btn" class="button secondary small" onclick="event.preventDefault(); event.stopPropagation();">🎲 Shuffle / Auto-Generate Script</button>
+          </div>
+        </div>
+
+        <label class="full-row script-input-label">
+          <textarea name="pixarScript" id="pixar-script-input" rows="7" placeholder="Type or paste any script here, or click '🎲 Shuffle / Auto-Generate Script' to instantly load a creative Pixar 3D story with dialogues!
+
+Example:
+Pencil Hero: Arey dosto! Dekho subah ho gayi, bag khulne wala hai!
+Panicky Eraser: Lekin Maths test ka kya?! Mujhe dar lag raha hai!
+Sharpener Tech: Tension mat lo! Mera supersonic blade ready hai!
+Ruler Superhero: Darne ki koi baat nahi! Mai 30cm ka superhero hu!"></textarea>
+        </label>
+
+        <div class="pixar-feature-badges">
+          <span class="badge-feature">✨ 60 FPS Progressive</span>
+          <span class="badge-feature">🎨 Zero-Jitter 9:16 Vertical</span>
+          <span class="badge-feature">🔔 Real School Bell SFX</span>
+          <span class="badge-feature">🎵 Pixar Acoustic BGM</span>
+          <span class="badge-feature">🎬 Smooth Dissolve Transitions</span>
+        </div>
+      </div>
+
+      <!-- Standard Explainer Controls (Hidden by default) -->
+      <div id="standard-generator-section" class="hidden">
+        <label><span>Topic <small>optional—leave blank for agent selection</small></span><input name="topic" maxlength="200" placeholder="How small teams can automate repetitive work"></label>
+        <div class="form-grid two">
+          <label><span>Format</span><select name="style"><option value="explainer">Explainer</option><option value="tutorial">Tutorial</option><option value="list">List</option><option value="review">Review</option><option value="story">Story</option></select></label>
+          <label><span>Length</span><select name="length"><option value="short">Short · 2–4 min</option><option value="medium" selected>Medium · 8–12 min</option><option value="long">Long · 15–20 min</option></select></label>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" id="start-generate-btn" class="button primary">🚀 Generate 3D Animated Video</button>
+        <button type="button" class="button ghost" data-close>Cancel</button>
+      </div>
     </form>
   </dialog>
 

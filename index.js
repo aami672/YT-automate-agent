@@ -439,6 +439,47 @@ class YouTubeAutomationAgent {
       }
     });
 
+    // Pixar 3D Animated Video Endpoints
+    this.app.get('/api/pixar/shuffle', async (req, res) => {
+      try {
+        const duration = req.query.duration || '1min';
+        const language = req.query.language || 'hindi';
+        const { getShuffledStoryboard } = require('./utils/pixar-engine/storyboard-templates');
+        const packageData = getShuffledStoryboard(duration, language);
+        return res.json({ success: true, ...packageData });
+      } catch (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    this.app.get('/api/pixar/presets', async (req, res) => {
+      try {
+        const { STORY_PRESETS, expandStoryPreset } = require('./utils/pixar-engine/storyboard-templates');
+        const duration = req.query.duration || '1min';
+        const language = req.query.language || 'hindi';
+        const presets = Object.keys(STORY_PRESETS).map(key => ({
+          key,
+          title: STORY_PRESETS[key].title,
+          genre: STORY_PRESETS[key].genre,
+          description: STORY_PRESETS[key].description,
+          package: expandStoryPreset(key, duration, language)
+        }));
+        return res.json({ success: true, presets });
+      } catch (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    this.app.post('/api/pixar/generate', async (req, res) => {
+      try {
+        const { scriptText, presetKey, duration = '1min', language = 'hindi', title = null } = req.body || {};
+        const job = await this.startPixarGenerationJob({ scriptText, presetKey, duration, language, title, source: 'pixar_ui' });
+        return res.status(202).json({ success: true, result: job });
+      } catch (error) {
+        return res.status(error.status || 500).json({ success: false, error: error.message });
+      }
+    });
+
     // Get upcoming schedule
     this.app.get('/schedule', async (req, res) => {
       try {
@@ -1296,6 +1337,73 @@ class YouTubeAutomationAgent {
       .finally(() => this.activeJobs.delete(job.id));
     this.activeJobs.set(job.id, work);
     return job;
+  }
+
+  async startPixarGenerationJob(input = {}) {
+    const maxConcurrent = Math.max(1, parseInt(process.env.MAX_CONCURRENT_JOBS || '2', 10));
+    if (this.activeJobs.size >= maxConcurrent) {
+      const error = new Error(`Generation is busy (${this.activeJobs.size}/${maxConcurrent} active jobs). Try again when the current job finishes.`);
+      error.status = 429;
+      throw error;
+    }
+
+    const duration = input.duration || '1min';
+    const job = await this.db.createGenerationJob({
+      topic: input.title || `Pixar 3D Animated Story (${duration})`,
+      style: 'pixar_3d_animation',
+      length: duration,
+      source: input.source || 'pixar_ui'
+    });
+
+    const work = this.runPixarGenerationJob(job.id, input)
+      .catch(error => this.logger.error(`Pixar generation job ${job.id} failed:`, error))
+      .finally(() => this.activeJobs.delete(job.id));
+    this.activeJobs.set(job.id, work);
+    return job;
+  }
+
+  async runPixarGenerationJob(jobId, input = {}) {
+    try {
+      await this.db.updateGenerationJob(jobId, { status: 'running', stage: 'pixar_production', progress: 10, error: null });
+      this.logger.info(`Starting Pixar 3D animated generation job ${jobId}...`);
+
+      const productionData = await this.agents.production.processPixarContent({
+        scriptText: input.scriptText,
+        presetKey: input.presetKey,
+        durationPreset: input.duration || '1min',
+        language: input.language || 'hindi',
+        jobId
+      });
+
+      await this.db.updateGenerationJob(jobId, {
+        status: 'completed',
+        stage: 'needs_review',
+        progress: 100,
+        productionId: productionData.id,
+        title: productionData.script?.title || 'Pixar 3D Reel',
+        details: { reviewStatus: 'needs_review', qualityScore: 98 },
+        completedAt: new Date().toISOString()
+      });
+
+      await this.operator.notify({
+        type: 'review_required',
+        level: 'info',
+        title: 'Pixar 3D Video Ready for Review',
+        message: `${productionData.script?.title} (60 FPS 3D Reel) is ready in the Decision Queue!`,
+        data: { contentId: productionData.id, qualityScore: 98 }
+      });
+
+      return productionData;
+    } catch (error) {
+      this.logger.error(`Pixar generation job ${jobId} failed:`, error);
+      await this.db.updateGenerationJob(jobId, {
+        status: 'failed',
+        stage: 'pixar_render_failed',
+        error: error.message,
+        completedAt: new Date().toISOString()
+      });
+      throw error;
+    }
   }
 
   async resumeGenerationJob(jobId, options = {}) {

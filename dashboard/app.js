@@ -1703,13 +1703,90 @@ $('#resume-operator-run').addEventListener('click', async event => {
   }
 });
 
+// Pixar 3D Animation UI Controls
+let currentGeneratorMode = 'pixar';
+
+const pixarTab = $('#tab-pixar-mode');
+const standardTab = $('#tab-standard-mode');
+const pixarSection = $('#pixar-generator-section');
+const standardSection = $('#standard-generator-section');
+const startGenBtn = $('#start-generate-btn');
+
+if (pixarTab && standardTab) {
+  pixarTab.addEventListener('click', () => {
+    currentGeneratorMode = 'pixar';
+    pixarTab.classList.add('active');
+    standardTab.classList.remove('active');
+    pixarSection?.classList.remove('hidden');
+    standardSection?.classList.add('hidden');
+    if (startGenBtn) startGenBtn.textContent = '🚀 Generate 3D Animated Video';
+  });
+
+  standardTab.addEventListener('click', () => {
+    currentGeneratorMode = 'standard';
+    standardTab.classList.add('active');
+    pixarTab.classList.remove('active');
+    standardSection?.classList.remove('hidden');
+    pixarSection?.classList.add('hidden');
+    if (startGenBtn) startGenBtn.textContent = 'Start standard generation';
+  });
+}
+
+const shuffleBtn = $('#shuffle-script-btn');
+if (shuffleBtn) {
+  shuffleBtn.addEventListener('click', async event => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const duration = $('#pixar-duration-select')?.value || '1min';
+    const language = $('#pixar-language-select')?.value || 'hindi';
+    shuffleBtn.disabled = true;
+    shuffleBtn.textContent = '🎲 Shuffling...';
+    try {
+      const res = await api(`/api/pixar/shuffle?duration=${encodeURIComponent(duration)}&language=${encodeURIComponent(language)}`);
+      if (res && res.storyboard) {
+        const formattedScript = res.storyboard.map(s => `${s.character}: ${s.dialogue}`).join('\n\n');
+        const scriptInput = $('#pixar-script-input');
+        if (scriptInput) {
+          scriptInput.value = formattedScript;
+          scriptInput.focus();
+        }
+        showToast(`🎲 Loaded: "${res.title}" (${res.storyboard.length} scenes)`);
+      }
+    } catch (err) {
+      showToast('Failed to shuffle script: ' + (err.message || 'Error'), 'warning');
+    } finally {
+      shuffleBtn.disabled = false;
+      shuffleBtn.textContent = '🎲 Shuffle / Auto-Generate Script';
+    }
+  });
+}
+
 $('#generate-form').addEventListener('submit', async event => {
   event.preventDefault();
-  const values = Object.fromEntries(new FormData(event.currentTarget));
+  event.stopPropagation();
+  const form = event.currentTarget;
+  const values = Object.fromEntries(new FormData(form));
+
   try {
-    await mutate('/generate', 'POST', { ...values, topic: values.topic.trim() || null }, 'Generation job started.');
+    if (currentGeneratorMode === 'pixar') {
+      const scriptText = $('#pixar-script-input')?.value?.trim() || values.pixarScript || '';
+      const duration = values.pixarDuration || '1min';
+      const language = values.pixarLanguage || 'hindi';
+
+      await mutate('/api/pixar/generate', 'POST', {
+        scriptText,
+        duration,
+        language
+      }, 'Pixar 3D animated reel generation started!');
+    } else {
+      await mutate('/generate', 'POST', { ...values, topic: values.topic?.trim() || null }, 'Generation job started.');
+    }
     $('#generate-dialog').close();
-    event.currentTarget.reset();
+    form.reset();
+    switchView('pipeline');
+    refreshDashboard(false);
   } catch (_error) { /* toast already shown */ }
 });
 
