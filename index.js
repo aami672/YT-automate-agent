@@ -444,8 +444,17 @@ class YouTubeAutomationAgent {
       try {
         const duration = req.query.duration || '1min';
         const language = req.query.language || 'hindi';
-        const { getShuffledStoryboard } = require('./utils/pixar-engine/storyboard-templates');
-        const packageData = getShuffledStoryboard(duration, language);
+        const topic = req.query.topic || null;
+        
+        const { PixarVideoEngine } = require('./utils/pixar-engine/pixar-video-engine');
+        const engine = new PixarVideoEngine({ credentials: this.credentials });
+        
+        let packageData = await engine.generateDynamicGeminiScript(duration, language, topic);
+        if (!packageData) {
+          const { getShuffledStoryboard } = require('./utils/pixar-engine/storyboard-templates');
+          packageData = getShuffledStoryboard(duration, language);
+        }
+        
         return res.json({ success: true, ...packageData });
       } catch (error) {
         return res.status(500).json({ success: false, error: error.message });

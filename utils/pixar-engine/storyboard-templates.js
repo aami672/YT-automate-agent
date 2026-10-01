@@ -268,6 +268,166 @@ const STORY_PRESETS = {
         visual_prompt: 'A high-quality 3D Pixar animation scene. Celebratory finale of the cute smartphone character smiling warmly and waving at the camera taking a selfie with its gadget friends, golden glowing like and subscribe icons floating in air with colorful festive confetti bokeh, 3D Pixar render, vertical 9:16'
       }
     ]
+  },
+  bathroom_squad: {
+    title: 'Bathroom Squad: The 7:00 AM Morning Freshness Mission',
+    genre: 'Pixar 3D Bathroom Comedy',
+    description: 'When the bathroom light switches on, the toiletries team up for the freshest dental mission!',
+    tags: ['pixar', 'bathroomcomedy', 'animation', 'cartoon', 'shorts', 'funny', 'kids'],
+    scenes_1min: [
+      {
+        scene_index: 1,
+        title: 'Toothbrush Hero Wakes Up',
+        character: 'Toothbrush Hero',
+        voice_type: 'hero',
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '+18Hz',
+        rate: '+8%',
+        dialogue: 'Subah ke saat baj chuke hain dosto! Toothbrush captain ready hai, aaj har keede aur cavity ki chhutti karni hai!',
+        image_path: '',
+        visual_prompt: 'A high-quality 3D Pixar Disney animation scene. A cheerful electric blue toothbrush character with big expressive cartoon eyes and a wide toothpaste-foam smile, standing proudly upright on a white porcelain bathroom sink, bright morning sunlight streaming in, vertical 9:16'
+      },
+      {
+        scene_index: 2,
+        title: 'Nervous Toothpaste Tube',
+        character: 'Toothpaste Tube',
+        voice_type: 'squeaky',
+        voice: 'hi-IN-SwaraNeural',
+        pitch: '+32Hz',
+        rate: '+5%',
+        dialogue: 'Arey Captain zara aaram se dabana! Pichli baar Pappu ne aisi squeeze mari thi ki mera paste ceiling par chala gaya tha!',
+        image_path: '',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. A cute chunky colorful toothpaste tube character with comical wide worried cartoon eyes and hands on its squishy belly, shivering nervously on the bathroom counter, 3D Pixar render, vertical 9:16'
+      },
+      {
+        scene_index: 3,
+        title: 'Soapy Bubble Master',
+        character: 'Soap Bubble',
+        voice_type: 'fast_tech',
+        voice: 'hi-IN-SwaraNeural',
+        pitch: '+18Hz',
+        rate: '+10%',
+        dialogue: 'Chinta mat karo team! Hamara ultra-foaming bubble shield active ho chuka hai! 99.9 percent germ cleanup in 3, 2, 1... Foam blast!',
+        image_path: '',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. A cute glowing translucent iridescent soap bubble character floating gracefully in the air above the sink, reflecting sparkling rainbow lights, 3D Pixar render, vertical 9:16'
+      },
+      {
+        scene_index: 4,
+        title: 'Heavyweight Towel Commander',
+        character: 'Towel Commander',
+        voice_type: 'deep_hero',
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '-22Hz',
+        rate: '-8%',
+        dialogue: 'Rasta saaf hai! Mai hu Towel Commander. Zero moisture, super soft finish! Face drying operation shuru!',
+        image_path: '',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. A fluffy warm golden-yellow bath towel character with a superhero cape fold and confident heroic smile standing on the towel ring, warm bathroom lighting, vertical 9:16'
+      },
+      {
+        scene_index: 5,
+        title: 'Sparkling Fresh Squad Celebration',
+        character: 'Freshness Squad',
+        voice_type: 'action',
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '+14Hz',
+        rate: '+6%',
+        dialogue: '100 percent shining bright! Dant moti jaise chamak rahe hain aur freshness full on hai! Squad wins again!',
+        image_path: '',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. The entire bathroom squad (toothbrush, toothpaste, glowing bubbles, towel) celebrating together with sparkling shiny tooth gleam stars and water droplet confetti, 3D Pixar render, vertical 9:16'
+      },
+      {
+        scene_index: 6,
+        title: 'Freshness Outro & CTA',
+        character: 'Toothbrush Hero',
+        voice_type: 'outro',
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '+20Hz',
+        rate: '+8%',
+        dialogue: 'Kya aapne aaj subah brush kiya? Comment me batao aur channel ko jaldi se Subscribe karo dosto!',
+        image_path: '',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. The cute toothbrush hero giving a sparkling thumbs-up with floating golden like and subscribe icons and festive morning confetti, 3D Pixar render, vertical 9:16'
+      }
+    ]
+  },
+  bedroom_toys: {
+    title: 'Secret Life of Bedroom Objects: The 6:00 AM Alarm Heist',
+    genre: 'Pixar 3D Bedroom Adventure',
+    description: 'When the alarm clock threatens to ring, the bedroom items unite for a stealthy 5-minute snooze mission!',
+    tags: ['pixar', 'bedroomadventure', 'animation', 'cartoon', 'shorts', 'funny', 'kids'],
+    scenes_1min: [
+      {
+        scene_index: 1,
+        title: 'Alarm Clock Countdown',
+        character: 'Alarm Clock Boss',
+        voice_type: 'hero',
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '+18Hz',
+        rate: '+8%',
+        dialogue: 'Attention bedroom! Exactly 5:59 AM ho chuka hai! Ek minute baad mera trrr-trrr siren bajne wala hai, sab uth jao!',
+        image_path: '',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. A cute retro twin-bell red alarm clock character with big round expressive cartoon eyes and a cheeky ringing hammer, hopping on a wooden nightstand, cozy early morning bedroom light, vertical 9:16'
+      },
+      {
+        scene_index: 2,
+        title: 'Fluffy Pillow Begs for Snooze',
+        character: 'Fluffy Pillow',
+        voice_type: 'squeaky',
+        voice: 'hi-IN-SwaraNeural',
+        pitch: '+32Hz',
+        rate: '+5%',
+        dialogue: 'Arre clock bhai raham karo! Sirf 5 minute aur so lene do, meri cotton abhi garam hui hai!',
+        image_path: '',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. A super fluffy white soft pillow character with sleepy half-open cartoon eyes and comical rosy cheeks, hugging a cozy blanket on the bed, vertical 9:16'
+      },
+      {
+        scene_index: 3,
+        title: 'Night Lamp Detective',
+        character: 'Night Lamp',
+        voice_type: 'fast_tech',
+        voice: 'hi-IN-SwaraNeural',
+        pitch: '+18Hz',
+        rate: '+10%',
+        dialogue: 'Security scanner active! Maine humans ka sleep tracker check kiya hai, unka REM cycle chal raha hai! Snooze button daba do!',
+        image_path: '',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. A sleek friendly wooden desk lamp character bending down like a detective with glowing warm yellow bulb light, 3D Pixar render, vertical 9:16'
+      },
+      {
+        scene_index: 4,
+        title: 'Blanket Fortress Commander',
+        character: 'Blanket Monster',
+        voice_type: 'deep_hero',
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '-22Hz',
+        rate: '-8%',
+        dialogue: 'Blanket shield deployed! Koi bhi thandi hawa ya shor andar nahi aayega! We protect the morning sleep!',
+        image_path: '',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. A cozy colorful quilt blanket character forming a protective fortress fort over the bed, confident hero expression, vertical 9:16'
+      },
+      {
+        scene_index: 5,
+        title: 'Snooze Button Victory',
+        character: 'Bedroom Squad',
+        voice_type: 'action',
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '+14Hz',
+        rate: '+6%',
+        dialogue: 'Mission snooze successful! 5 minute ka extra sapna shuru! Hamari bedroom squad sabse best hai!',
+        image_path: '',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. The alarm clock, fluffy pillow, night lamp, and cozy blanket cuddling and cheering softly together in warm morning sunlight, 3D Pixar render, vertical 9:16'
+      },
+      {
+        scene_index: 6,
+        title: 'Bedroom Outro & CTA',
+        character: 'Fluffy Pillow',
+        voice_type: 'outro',
+        voice: 'hi-IN-MadhurNeural',
+        pitch: '+20Hz',
+        rate: '+8%',
+        dialogue: 'Kya aapko bhi subah snooze button dabana pasand hai? Comment karo aur video ko Like aur Subscribe karo!',
+        image_path: '',
+        visual_prompt: 'A high-quality 3D Pixar animation scene. The cute fluffy pillow waving happily with golden glowing like and subscribe icons floating with soft feather bokeh particles, 3D Pixar render, vertical 9:16'
+      }
+    ]
   }
 };
 
@@ -400,11 +560,20 @@ function parseCustomScriptToStoryboard(scriptText, durationKey = '1min', languag
   };
 }
 
+let lastShuffledIndex = -1;
+
 /**
  * Get a random shuffled storyboard from our library
  */
 function getShuffledStoryboard(durationKey = '1min', language = 'hindi') {
-  return expandStoryPreset('backpack_squad', durationKey, language);
+  const keys = Object.keys(STORY_PRESETS);
+  let nextIndex;
+  do {
+    nextIndex = Math.floor(Math.random() * keys.length);
+  } while (keys.length > 1 && nextIndex === lastShuffledIndex);
+  
+  lastShuffledIndex = nextIndex;
+  return expandStoryPreset(keys[nextIndex], durationKey, language);
 }
 
 module.exports = {
