@@ -5,7 +5,7 @@ Exact generation sequence and format ported from ai_reels_project:
 - apad per-scene audio alignment & slot padding (9.54s / 10.04s)
 - Realistic physical school bell chime SFX synthesis (numpy inharmonic modal frequencies)
 - Upbeat 124 BPM Disney/Pixar acoustic cartoon BGM (Marimba, Ukulele, Glockenspiel in C-G-Am-F major)
-- 3D reference character images loading & strict 720x1280 (9:16 vertical) normalization
+- 3D animated scene video clips integration & strict 720x1280 (9:16 vertical) normalization
 - Cinematic dissolve crossfades (xfade=transition=fade) with intro fade-in and outro fade-out
 - Master multi-track audio mixing ([a_diag][a_bgm][a_bell]amix) and progressive 60 FPS H.264 MP4 delivery.
 """
@@ -226,6 +226,44 @@ async def generate_single_tts(text, voice, pitch, rate, output_mp3):
         print(f"Edge TTS failed for '{text[:20]}...': {e}", file=sys.stderr, flush=True)
         return False
 
+def resolve_character_clip(scene, idx, project_root):
+    """Find the best 3D animated video clip for the scene."""
+    clip_path = scene.get("clip_path") or scene.get("clip")
+    if clip_path:
+        p = Path(clip_path)
+        if not p.is_absolute():
+            p = project_root / clip_path
+        if p.exists() and p.stat().st_size > 100000:
+            return str(p)
+
+    # Check assets/pixar-clips/scene_{idx}.mp4
+    direct_clip = project_root / "assets" / "pixar-clips" / f"scene_{idx}.mp4"
+    if direct_clip.exists() and direct_clip.stat().st_size > 100000:
+        return str(direct_clip)
+
+    # Check scratch ai_reels_project/scene_clips_v3/scene_{idx}.mp4
+    ai_reels_clip = Path(f"C:/Users/Amar's PC/.gemini/antigravity/scratch/ai_reels_project/scene_clips_v3/scene_{idx}.mp4")
+    if ai_reels_clip.exists() and ai_reels_clip.stat().st_size > 100000:
+        return str(ai_reels_clip)
+
+    # Check character name mapping
+    char_lower = scene.get("character", "").lower()
+    mapping = {
+        "pencil": "scene_0.mp4",
+        "eraser": "scene_1.mp4",
+        "sharpener": "scene_2.mp4",
+        "ruler": "scene_3.mp4",
+        "squad": "scene_4.mp4",
+        "outro": "scene_5.mp4"
+    }
+    for key, filename in mapping.items():
+        if key in char_lower:
+            candidate = project_root / "assets" / "pixar-clips" / filename
+            if candidate.exists() and candidate.stat().st_size > 100000:
+                return str(candidate)
+
+    return None
+
 def resolve_character_image(scene, project_root):
     """Find the best 3D reference image for the scene."""
     img_path = scene.get("image_path") or scene.get("image")
@@ -324,10 +362,39 @@ def render_fallback_frame(character_name, scene_title, width, height, output_png
     img.save(output_png, quality=95)
     return output_png
 
-def render_scene_clip_exact(image_source, output_mp4, duration, fps=60, width=720, height=1280):
+def normalize_scene_clip_video(input_clip, output_mp4, duration, fps=60, width=720, height=1280):
     """
-    Render standardized 720x1280 9:16 vertical video clip with strict aspect ratio
-    and smooth progressive 60 FPS output.
+    Normalize an animated 3D video clip to strict 720x1280 9:16 aspect ratio,
+    high visual quality (CRF 17), and target duration.
+    """
+    os.makedirs(os.path.dirname(os.path.abspath(output_mp4)), exist_ok=True)
+    cmd = [
+        FFMPEG, "-y",
+        "-i", str(input_clip),
+        "-t", f"{duration:.2f}",
+        "-vf", (
+            f"scale={width}:{height}:force_original_aspect_ratio=increase,"
+            f"crop={width}:{height},"
+            f"setsar=1,"
+            f"format=yuv420p,"
+            f"fps={fps}"
+        ),
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-crf", "17",
+        "-pix_fmt", "yuv420p",
+        "-an",
+        str(output_mp4)
+    ]
+    p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace")
+    if p.returncode != 0:
+        print(f"Clip normalization failed for {output_mp4}:\n{p.stderr}", file=sys.stderr, flush=True)
+        raise RuntimeError(f"Clip normalization failed: {p.stderr}")
+    return output_mp4
+
+def render_scene_clip_from_image(image_source, output_mp4, duration, fps=60, width=720, height=1280):
+    """
+    Render standardized 720x1280 9:16 vertical video clip with subtle motion from static frame.
     """
     os.makedirs(os.path.dirname(os.path.abspath(output_mp4)), exist_ok=True)
     
@@ -345,8 +412,8 @@ def render_scene_clip_exact(image_source, output_mp4, duration, fps=60, width=72
             f"fps={fps}"
         ),
         "-c:v", "libx264",
-        "-preset", "veryfast",
-        "-crf", "17",
+        "-preset", "medium",
+        "-crf", "16",
         "-pix_fmt", "yuv420p",
         str(output_mp4)
     ]
@@ -453,8 +520,8 @@ def build_dissolve_sequence_with_start_end_fades(clip_paths, output_dir, final_s
         "-filter_complex", ";".join(filter_complex_parts),
         "-map", "[vout]",
         "-c:v", "libx264",
-        "-preset", "veryfast",
-        "-crf", "17",
+        "-preset", "medium",
+        "-crf", "16",
         "-pix_fmt", "yuv420p",
         xfade_output
     ]
@@ -548,14 +615,24 @@ async def main_async():
     bell_wav = os.path.join(audio_dir, "real_school_bell.wav")
     bgm_wav = os.path.join(audio_dir, "cheerful_cartoon_bgm.wav")
     
-    create_physical_school_bell(bell_wav, duration=4.0)
-    create_cheerful_cartoon_bgm(bgm_wav, total_duration=240.0)
+    master_bell = project_root / "assets" / "pixar-audio" / "real_school_bell.wav"
+    master_bgm = project_root / "assets" / "pixar-audio" / "cheerful_cartoon_bgm.wav"
+    
+    if master_bell.exists():
+        shutil.copyfile(str(master_bell), bell_wav)
+    else:
+        create_physical_school_bell(bell_wav, duration=4.0)
+        
+    if master_bgm.exists():
+        shutil.copyfile(str(master_bgm), bgm_wav)
+    else:
+        create_cheerful_cartoon_bgm(bgm_wav, total_duration=65.0)
     
     # 2. Stage 1: Generate dialogue tracks with apad alignment
     master_dialogue, padded_scene_audios = await create_cartoon_audio_tracks(storyboard, audio_dir)
     
-    # 3. Stage 2: Render scene clips from verified 3D assets
-    print("\n[2/4] 🎬 Rendering Standardized 9:16 Scene Clips...", flush=True)
+    # 3. Stage 2: Render 3D animated scene clips with strict 9:16 normalization
+    print("\n[2/4] 🎬 Rendering Standardized 9:16 3D Animated Scene Clips...", flush=True)
     clip_paths = []
     num_scenes = len(storyboard)
     
@@ -563,17 +640,24 @@ async def main_async():
         clip_file = os.path.join(clips_dir, f"scene_{idx}.mp4")
         slot_dur = 10.04 if idx == num_scenes - 1 else 9.54
         
-        # Find 3D reference image
-        ref_image = resolve_character_image(scene, project_root)
-        if not ref_image or not os.path.exists(ref_image):
-            # Render visual frame
-            frame_png = os.path.join(clips_dir, f"frame_{idx}.png")
-            render_fallback_frame(scene.get("character", "Character"), scene.get("title", f"Scene {idx+1}"), width, height, frame_png)
-            ref_image = frame_png
+        # 1. Check for animated 3D video clip
+        anim_clip = resolve_character_clip(scene, idx, project_root)
+        if anim_clip and os.path.exists(anim_clip):
+            print(f"  [+] Using 3D animated source video for Scene {idx+1}: {anim_clip}", flush=True)
+            normalize_scene_clip_video(anim_clip, clip_file, slot_dur, fps=fps, width=width, height=height)
+        else:
+            # 2. Check for 3D reference image
+            ref_image = resolve_character_image(scene, project_root)
+            if not ref_image or not os.path.exists(ref_image):
+                frame_png = os.path.join(clips_dir, f"frame_{idx}.png")
+                render_fallback_frame(scene.get("character", "Character"), scene.get("title", f"Scene {idx+1}"), width, height, frame_png)
+                ref_image = frame_png
             
-        render_scene_clip_exact(ref_image, clip_file, slot_dur, fps=fps, width=width, height=height)
+            print(f"  [+] Rendering Scene {idx+1} from 3D reference image: {ref_image}", flush=True)
+            render_scene_clip_from_image(ref_image, clip_file, slot_dur, fps=fps, width=width, height=height)
+            
         clip_paths.append(clip_file)
-        print(f"  [✓] Scene {idx+1}/{num_scenes} clip rendered: {clip_file} ({slot_dur}s)", flush=True)
+        print(f"  [✓] Scene {idx+1}/{num_scenes} clip ready: {clip_file} ({slot_dur}s)", flush=True)
 
     # 4. Stage 3: Assemble dissolve sequence with start & end fades
     offsets = [9.54 * (i + 1) for i in range(num_scenes - 1)]

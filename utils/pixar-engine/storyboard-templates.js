@@ -39,6 +39,7 @@ const STORY_PRESETS = {
         rate: '+8%',
         dialogue: 'सोमवार की सुबह हो गई दोस्तों! पेंसिल भाई एकदम तैयार हैं, आज तो क्लास में पूरे दस में से दस मार्क्स लेकर ही मानेंगे!',
         image_path: 'assets/pixar-characters/pencil_hero.jpg',
+        clip_path: 'assets/pixar-clips/scene_0.mp4',
         visual_prompt: 'A high-quality 3D Pixar Disney animation scene. A cheerful yellow wooden pencil character with big expressive cartoon eyes and a warm smile on the pencil body standing proudly on a student notebook on a wooden classroom desk. Bright morning sunlight, soft classroom background. Important: NO tail, NO animal legs, pure classic stationery pencil character, steady locked camera, zero jitter, perfectly proportioned vertical 9:16 framing.'
       },
       {
@@ -51,6 +52,7 @@ const STORY_PRESETS = {
         rate: '+5%',
         dialogue: 'अरे पेंसिल भाई धीरे लिखो! तुम गलतियां करोगे और मुझे घिसना पड़ेगा, मेरी तो कमर टूट जाएगी!',
         image_path: 'assets/pixar-characters/eraser_panicking.jpg',
+        clip_path: 'assets/pixar-clips/scene_1.mp4',
         visual_prompt: 'A high-quality 3D Pixar animation scene. A cute chunky pink eraser character with comical worried wide eyes and hands on its cheeks, trembling playfully on the wooden desk beside an open notebook. Classroom setting with warm morning light, steady camera, rich tactile rubber textures, perfectly proportioned vertical 9:16 framing.'
       },
       {
@@ -63,6 +65,7 @@ const STORY_PRESETS = {
         rate: '+10%',
         dialogue: 'चिंता मत करो इरेज़र बाबू! जब तक शार्पनर यहाँ है, पेंसिल की नोक रॉकेट की तरह शार्प रहेगी, लिखाई एकदम मक्खन!',
         image_path: 'assets/pixar-characters/sharpener_tech.jpg',
+        clip_path: 'assets/pixar-clips/scene_2.mp4',
         visual_prompt: 'A high-quality 3D Pixar animation scene. A cute friendly blue plastic pencil sharpener character with big expressive cartoon eyes standing proudly upright on an open notebook on a wooden school desk. Sharp blade visible, bright morning sunlight, locked steady camera, perfectly proportioned vertical 9:16 framing, zero distortion, zero stretching.'
       },
       {
@@ -75,6 +78,7 @@ const STORY_PRESETS = {
         rate: '-8%',
         dialogue: 'शांत हो जाओ सब! जब तक स्केल साहब यहाँ हैं, एक भी लाइन टेढ़ी नहीं होगी, हर डायग्राम बिल्कुल सीधा और परफेक्ट!',
         image_path: 'assets/pixar-characters/ruler_superhero.jpg',
+        clip_path: 'assets/pixar-clips/scene_3.mp4',
         visual_prompt: 'A high-quality 3D Pixar animation scene. A tall sleek clear plastic ruler character standing proudly like a superhero with hands on hips on an open math notebook on the wooden classroom desk. Bright morning sunlight, clear transparent reflections, proud confident expression, locked steady framing, pure 3D character, perfectly proportioned 9:16 vertical.'
       },
       {
@@ -87,6 +91,7 @@ const STORY_PRESETS = {
         rate: '+6%',
         dialogue: 'देखा इसे कहते हैं बैकपैक स्क्वाड! लिखना, मिटाना, शार्प करना और सीधी लाइन - सब मिलकर करेंगे टॉप!',
         image_path: 'assets/pixar-characters/squad_vertical.jpg',
+        clip_path: 'assets/pixar-clips/scene_4.mp4',
         visual_prompt: 'A high-quality 3D Pixar Disney animation scene. The entire stationery squad - yellow pencil, pink eraser, blue sharpener, and clear ruler grouped closely in the center of an open notebook on the wooden school desk. Warm morning sunlight, chalkboard in background, locked steady camera, perfectly proportioned vertical 9:16 framing, zero stretching, no humans.'
       },
       {
@@ -99,6 +104,7 @@ const STORY_PRESETS = {
         rate: '+8%',
         dialogue: 'स्कूल की घंटी बज चुकी है दोस्तों! आपका सबसे पसंदीदा स्टेशनरी साथी कौन सा है? कमेंट में बताओ और सब्सक्राइब जरूर करो!',
         image_path: 'assets/pixar-characters/outro_vertical.jpg',
+        clip_path: 'assets/pixar-clips/scene_5.mp4',
         visual_prompt: 'A high-quality 3D Pixar animation scene. Celebratory finale of the cute stationery squad (yellow pencil, pink eraser, blue sharpener, clear ruler) waving happily together with joyful big smiles on the wooden school desk next to a colorful pencil box. Festive morning sunlight, sparkling confetti bokeh, locked steady camera, perfectly proportioned vertical 9:16 framing, zero stretching, no humans.'
       }
     ]
@@ -236,6 +242,7 @@ function expandStoryPreset(presetKey, targetDurationKey = '1min', language = 'hi
         pitch: s.pitch || voices[s.voice_type]?.pitch || '+18Hz',
         rate: s.rate || voices[s.voice_type]?.rate || '+8%',
         image_path: s.image_path || '',
+        clip_path: s.clip_path || '',
         target_duration: 9.5
       }))
     };
@@ -267,6 +274,7 @@ function expandStoryPreset(presetKey, targetDurationKey = '1min', language = 'hi
       pitch: base.pitch || voices[base.voice_type]?.pitch || '+18Hz',
       rate: base.rate || voices[base.voice_type]?.rate || '+8%',
       image_path: base.image_path || '',
+      clip_path: base.clip_path || '',
       dialogue: i === numScenes - 1 ? 'Dosto video ko Like aur Subscribe karo aur agle episode ke liye comment karo!' : dialogue,
       visual_prompt: base.visual_prompt,
       target_duration: 9.5
